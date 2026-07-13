@@ -11,19 +11,33 @@ namespace FluentChromeTabs
         private Image _icon;
         private bool _canClose = true;
 
+        /// <summary>
+        /// Creates a content-less tab for loose usage: the tab is pure metadata, and the window's own
+        /// content (a WebView, a UserControl, anything you place on the form) reacts to
+        /// <see cref="FluentChromeTabsForm.SelectedTabChanged" />.
+        /// </summary>
+        /// <param name="title">Text shown on the tab.</param>
+        public FluentTab(string title)
+            : this(title, null)
+        {
+        }
+
         /// <summary>Creates a tab with a title and the control shown when the tab is selected.</summary>
         /// <param name="title">Text shown on the tab.</param>
-        /// <param name="content">Control displayed below the tab strip while this tab is selected. May be null for a blank tab.</param>
+        /// <param name="content">
+        /// Control displayed below the tab strip while this tab is selected, or null for a content-less
+        /// tab whose selection is handled entirely by your own code.
+        /// </param>
         public FluentTab(string title, Control content)
         {
             _title = title ?? string.Empty;
-            Content = content ?? new Panel();
+            Content = content;
         }
 
         /// <summary>The window currently hosting this tab, or null when the tab is detached.</summary>
         public FluentChromeTabsForm Owner { get; internal set; }
 
-        /// <summary>Control displayed while this tab is selected.</summary>
+        /// <summary>Control displayed while this tab is selected, or null for a content-less tab.</summary>
         public Control Content { get; }
 
         /// <summary>Text shown on the tab.</summary>

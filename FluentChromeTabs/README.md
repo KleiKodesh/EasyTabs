@@ -60,6 +60,31 @@ Application.Run(new FluentChromeTabsApplicationContext(window));
 Tab content is any `Control` (a `UserControl`, a `Panel`, anything) — it is docked below the
 tab strip and shown while its tab is selected.
 
+### Loose mode: tab strip only, your content stays static
+
+Tabs don't have to own content. Add them with just a title and they become pure metadata — the
+strip still supports reordering, closing, tear-off, and the "+" button — while **one static
+control of yours** (a WebView2, a stateful `UserControl`) fills the window and reacts to
+selection changes:
+
+```csharp
+var window = new FluentChromeTabsForm { Text = "My Browser" };
+
+var webView = new WebView2 { Dock = DockStyle.Fill };   // sits below the strip automatically
+window.Controls.Add(webView);
+
+window.AddTab("Google").Tag = "https://google.com";     // content-less tabs: metadata only
+window.AddTab("GitHub").Tag = "https://github.com";
+
+window.SelectedTabChanged += (s, e) =>
+    webView.Source = new Uri((string) e.Tab.Tag);
+
+Application.Run(new FluentChromeTabsApplicationContext(window));
+```
+
+Mixing is fine too: some tabs with `Content`, some without. Per-tab state for loose tabs lives
+wherever you like — `FluentTab.Tag` is the natural spot. See `LooseDemoForm` in the demo app.
+
 ### A richer app
 
 ```csharp
@@ -94,7 +119,7 @@ public class MainWindow : FluentChromeTabsForm
 
 | Member | Purpose |
 | --- | --- |
-| `AddTab(title, control)` / `AddTab(tab)` / `InsertTab(index, tab)` | Add tabs; returns the `FluentTab` |
+| `AddTab(title, control)` / `AddTab(title)` / `AddTab(tab)` / `InsertTab(index, tab)` | Add tabs (title-only = loose mode); returns the `FluentTab` |
 | `CloseTab(tab)` | Close programmatically (raises `TabClosing` first) |
 | `RequestNewTab()` | Same as the user pressing "+" |
 | `Tabs`, `SelectedTab`, `SelectedIndex` | Enumerate and select |
@@ -118,7 +143,7 @@ public class MainWindow : FluentChromeTabsForm
 | --- | --- |
 | `Title`, `Icon` | Text and optional 16×16 icon on the tab |
 | `CanClose` | `false` = pinned: no close button, immune to Ctrl+W |
-| `Content` | The hosted control |
+| `Content` | The hosted control, or null for a loose (metadata-only) tab |
 | `Tag` | Your data |
 
 ## High DPI

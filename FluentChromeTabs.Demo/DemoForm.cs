@@ -104,10 +104,21 @@ namespace FluentChromeTabs.Demo
             };
             autoTheme.Click += (sender, e) => Theme = FluentChromeTabsTheme.Auto;
 
+            Button looseMode = new Button
+            {
+                Text = "Open loose-mode window",
+                Font = new Font("Segoe UI", 10f),
+                Size = new Size(200, 36),
+                Location = new Point(430, 380),
+                FlatStyle = FlatStyle.Flat
+            };
+            looseMode.Click += (sender, e) => new LooseDemoForm { Theme = Theme }.Show();
+
             panel.Controls.Add(title);
             panel.Controls.Add(body);
             panel.Controls.Add(themeToggle);
             panel.Controls.Add(autoTheme);
+            panel.Controls.Add(looseMode);
 
             return panel;
         }

@@ -25,6 +25,13 @@ namespace FluentChromeTabs
                 g.FillRectangle(strip, 0, 0, ClientSize.Width, StripHeightPx);
             }
 
+            // Below the strip, paint the active-tab surface so content-less (loose mode) tabs and
+            // any uncovered client area blend with the selected tab instead of showing strip color
+            using (SolidBrush content = new SolidBrush(_palette.TabActive))
+            {
+                g.FillRectangle(content, 0, StripHeightPx, ClientSize.Width, Math.Max(0, ClientSize.Height - StripHeightPx));
+            }
+
             for (int i = 0; i < _tabs.Count; i++)
             {
                 if (!_dragging || i != _dragIndex)

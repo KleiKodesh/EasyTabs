@@ -149,6 +149,16 @@ namespace FluentChromeTabs
             return InsertTab(_tabs.Count, new FluentTab(title, content));
         }
 
+        /// <summary>
+        /// Adds a content-less tab (loose mode): the tab is pure metadata and your own static content —
+        /// a WebView, a UserControl, anything you add to the form yourself — reacts to
+        /// <see cref="SelectedTabChanged" />.
+        /// </summary>
+        public FluentTab AddTab(string title)
+        {
+            return InsertTab(_tabs.Count, new FluentTab(title));
+        }
+
         /// <summary>Adds a tab to the end of the strip and selects it.</summary>
         public FluentTab AddTab(FluentTab tab)
         {
@@ -192,7 +202,7 @@ namespace FluentChromeTabs
             }
 
             DetachTabCore(tab);
-            tab.Content.Dispose();
+            tab.Content?.Dispose();
             TabClosed?.Invoke(this, new FluentTabEventArgs(tab));
 
             if (_tabs.Count == 0 && ExitOnLastTabClose)
@@ -224,8 +234,7 @@ namespace FluentChromeTabs
             }
 
             _newTabCounter++;
-            Control content = args.Content ?? new Panel { BackColor = ContentBackColor };
-            AddTab(args.Title, content);
+            AddTab(args.Title, args.Content);
         }
 
         #endregion
@@ -237,9 +246,13 @@ namespace FluentChromeTabs
             index = Math.Max(0, Math.Min(index, _tabs.Count));
 
             tab.Owner = this;
-            tab.Content.Dock = DockStyle.Fill;
-            tab.Content.Visible = false;
-            Controls.Add(tab.Content);
+
+            if (tab.Content != null)
+            {
+                tab.Content.Dock = DockStyle.Fill;
+                tab.Content.Visible = false;
+                Controls.Add(tab.Content);
+            }
 
             if (index <= _selectedIndex)
             {
@@ -256,7 +269,12 @@ namespace FluentChromeTabs
             int index = _tabs.IndexOf(tab);
 
             _tabs.RemoveAt(index);
-            Controls.Remove(tab.Content);
+
+            if (tab.Content != null)
+            {
+                Controls.Remove(tab.Content);
+            }
+
             tab.Owner = null;
 
             if (_tabs.Count == 0)
@@ -290,7 +308,7 @@ namespace FluentChromeTabs
                 return;
             }
 
-            if (_selectedIndex >= 0 && _selectedIndex < _tabs.Count)
+            if (_selectedIndex >= 0 && _selectedIndex < _tabs.Count && _tabs[_selectedIndex].Content != null)
             {
                 _tabs[_selectedIndex].Content.Visible = false;
             }
@@ -300,8 +318,13 @@ namespace FluentChromeTabs
             if (index >= 0 && index < _tabs.Count)
             {
                 FluentTab tab = _tabs[index];
-                tab.Content.Visible = true;
-                tab.Content.Select();
+
+                if (tab.Content != null)
+                {
+                    tab.Content.Visible = true;
+                    tab.Content.Select();
+                }
+
                 SelectedTabChanged?.Invoke(this, new FluentTabEventArgs(tab));
             }
 

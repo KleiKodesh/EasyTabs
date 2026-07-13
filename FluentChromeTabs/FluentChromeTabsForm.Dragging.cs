@@ -228,7 +228,7 @@ namespace FluentChromeTabs
                 {
                     FluentTab preexisting = window._tabs[0];
                     window.DetachTabCore(preexisting);
-                    preexisting.Content.Dispose();
+                    preexisting.Content?.Dispose();
                 }
 
                 return window;
