@@ -1,9 +1,9 @@
 using System.Drawing;
 
-namespace FluentTabs
+namespace FluentChromeTabs
 {
-    /// <summary>Color theme for a <see cref="FluentTabForm" />.</summary>
-    public enum FluentTabsTheme
+    /// <summary>Color theme for a <see cref="FluentChromeTabsForm" />.</summary>
+    public enum FluentChromeTabsTheme
     {
         /// <summary>Follow the Windows apps light/dark setting, and react when it changes.</summary>
         Auto,

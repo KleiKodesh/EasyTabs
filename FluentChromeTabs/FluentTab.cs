@@ -2,9 +2,9 @@ using System;
 using System.Drawing;
 using System.Windows.Forms;
 
-namespace FluentTabs
+namespace FluentChromeTabs
 {
-    /// <summary>A single tab hosted in a <see cref="FluentTabForm" />.</summary>
+    /// <summary>A single tab hosted in a <see cref="FluentChromeTabsForm" />.</summary>
     public class FluentTab
     {
         private string _title;
@@ -21,7 +21,7 @@ namespace FluentTabs
         }
 
         /// <summary>The window currently hosting this tab, or null when the tab is detached.</summary>
-        public FluentTabForm Owner { get; internal set; }
+        public FluentChromeTabsForm Owner { get; internal set; }
 
         /// <summary>Control displayed while this tab is selected.</summary>
         public Control Content { get; }

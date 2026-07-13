@@ -4,7 +4,7 @@ using System.Drawing;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
-namespace FluentTabs
+namespace FluentChromeTabs
 {
     /// <summary>
     /// A WinForms window that hosts Fluent (Windows 11) style tabs directly in its title bar.
@@ -15,26 +15,26 @@ namespace FluentTabs
     /// </para>
     /// <para>Minimal usage:</para>
     /// <code>
-    /// var window = new FluentTabForm { Text = "My App" };
+    /// var window = new FluentChromeTabsForm { Text = "My App" };
     /// window.AddTab("Home", new HomeControl());
     /// Application.Run(window);
     /// </code>
     /// </summary>
-    public partial class FluentTabForm : Form
+    public partial class FluentChromeTabsForm : Form
     {
-        private static readonly List<FluentTabForm> OpenTabForms = new List<FluentTabForm>();
+        private static readonly List<FluentChromeTabsForm> OpenTabForms = new List<FluentChromeTabsForm>();
 
         private readonly List<FluentTab> _tabs = new List<FluentTab>();
         private readonly ToolTip _toolTip = new ToolTip();
 
         private int _selectedIndex = -1;
-        private FluentTabsTheme _theme = FluentTabsTheme.Auto;
+        private FluentChromeTabsTheme _theme = FluentChromeTabsTheme.Auto;
         private Palette _palette;
         private bool _isDark;
         private bool _windowActive = true;
         private int _newTabCounter;
 
-        public FluentTabForm()
+        public FluentChromeTabsForm()
         {
             SetStyle(
                 ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint | ControlStyles.ResizeRedraw,
@@ -43,7 +43,7 @@ namespace FluentTabs
             AutoScaleMode = AutoScaleMode.None;
             Font = new Font("Segoe UI", 9f);
             ClientSize = new Size(1000, 640);
-            Text = "FluentTabs";
+            Text = "FluentChromeTabs";
 
             ApplyTheme();
             UpdateMetrics();
@@ -96,8 +96,8 @@ namespace FluentTabs
         /// <summary>Whether tabs may be torn off into their own window or dropped onto other windows. Defaults to true.</summary>
         public bool AllowTabDetach { get; set; } = true;
 
-        /// <summary>The color theme. <see cref="FluentTabsTheme.Auto" /> follows the Windows setting live.</summary>
-        public FluentTabsTheme Theme
+        /// <summary>The color theme. <see cref="FluentChromeTabsTheme.Auto" /> follows the Windows setting live.</summary>
+        public FluentChromeTabsTheme Theme
         {
             get { return _theme; }
             set
@@ -107,7 +107,7 @@ namespace FluentTabs
             }
         }
 
-        /// <summary>True when the effective theme (after resolving <see cref="FluentTabsTheme.Auto" />) is dark.</summary>
+        /// <summary>True when the effective theme (after resolving <see cref="FluentChromeTabsTheme.Auto" />) is dark.</summary>
         public bool IsDarkTheme
         {
             get { return _isDark; }
@@ -322,7 +322,7 @@ namespace FluentTabs
 
         private void ApplyTheme()
         {
-            bool dark = _theme == FluentTabsTheme.Dark || (_theme == FluentTabsTheme.Auto && IsSystemDark());
+            bool dark = _theme == FluentChromeTabsTheme.Dark || (_theme == FluentChromeTabsTheme.Auto && IsSystemDark());
 
             _isDark = dark;
             _palette = dark ? Palette.Dark : Palette.Light;
@@ -378,7 +378,7 @@ namespace FluentTabs
 
         private void OnUserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
         {
-            if (e.Category == UserPreferenceCategory.General && _theme == FluentTabsTheme.Auto)
+            if (e.Category == UserPreferenceCategory.General && _theme == FluentChromeTabsTheme.Auto)
             {
                 ApplyTheme();
             }
@@ -520,13 +520,13 @@ namespace FluentTabs
 
         #region Lifecycle
 
-        /// <summary>Number of <see cref="FluentTabForm" /> windows currently open in the process.</summary>
+        /// <summary>Number of <see cref="FluentChromeTabsForm" /> windows currently open in the process.</summary>
         public static int OpenWindowCount
         {
             get { return OpenTabForms.Count; }
         }
 
-        /// <summary>Raised after any <see cref="FluentTabForm" /> in the process closes. Used by <see cref="FluentTabsApplicationContext" />.</summary>
+        /// <summary>Raised after any <see cref="FluentChromeTabsForm" /> in the process closes. Used by <see cref="FluentChromeTabsApplicationContext" />.</summary>
         public static event EventHandler WindowClosed;
 
         protected override void OnHandleCreated(EventArgs e)

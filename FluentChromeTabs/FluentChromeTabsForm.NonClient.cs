@@ -3,10 +3,10 @@ using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
-namespace FluentTabs
+namespace FluentChromeTabs
 {
     /// <summary>Non-client handling: reclaiming the caption area, hit testing, and the drawn caption buttons.</summary>
-    public partial class FluentTabForm
+    public partial class FluentChromeTabsForm
     {
         private int _hotCaptionButton;
         private int _pressedCaptionButton;

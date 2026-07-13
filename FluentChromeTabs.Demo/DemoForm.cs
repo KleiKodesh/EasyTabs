@@ -2,13 +2,13 @@ using System;
 using System.Drawing;
 using System.Windows.Forms;
 
-namespace FluentTabs.Demo
+namespace FluentChromeTabs.Demo
 {
-    public class DemoForm : FluentTabForm
+    public class DemoForm : FluentChromeTabsForm
     {
         public DemoForm()
         {
-            Text = "FluentTabs Demo";
+            Text = "WinForms Fluent Chrome Tabs — Demo";
 
             AddTab("Welcome", BuildWelcomeContent());
             AddTab("Editor", BuildEditorContent());
@@ -57,7 +57,7 @@ namespace FluentTabs.Demo
 
             Label title = new Label
             {
-                Text = "FluentTabs",
+                Text = "Fluent Chrome Tabs",
                 Font = new Font("Segoe UI Semibold", 22f),
                 ForeColor = ContentForeColor,
                 AutoSize = true,
@@ -92,7 +92,7 @@ namespace FluentTabs.Demo
                 Location = new Point(42, 380),
                 FlatStyle = FlatStyle.Flat
             };
-            themeToggle.Click += (sender, e) => Theme = IsDarkTheme ? FluentTabsTheme.Light : FluentTabsTheme.Dark;
+            themeToggle.Click += (sender, e) => Theme = IsDarkTheme ? FluentChromeTabsTheme.Light : FluentChromeTabsTheme.Dark;
 
             Button autoTheme = new Button
             {
@@ -102,7 +102,7 @@ namespace FluentTabs.Demo
                 Location = new Point(236, 380),
                 FlatStyle = FlatStyle.Flat
             };
-            autoTheme.Click += (sender, e) => Theme = FluentTabsTheme.Auto;
+            autoTheme.Click += (sender, e) => Theme = FluentChromeTabsTheme.Auto;
 
             panel.Controls.Add(title);
             panel.Controls.Add(body);

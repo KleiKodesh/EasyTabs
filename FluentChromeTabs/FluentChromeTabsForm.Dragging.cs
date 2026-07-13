@@ -2,13 +2,13 @@ using System;
 using System.Drawing;
 using System.Windows.Forms;
 
-namespace FluentTabs
+namespace FluentChromeTabs
 {
     /// <summary>
     /// Tab mouse interaction: selection, closing, drag-reorder within the strip, tearing a tab off
-    /// into its own window, and dropping a tab onto another <see cref="FluentTabForm" />.
+    /// into its own window, and dropping a tab onto another <see cref="FluentChromeTabsForm" />.
     /// </summary>
-    public partial class FluentTabForm
+    public partial class FluentChromeTabsForm
     {
         private int _mouseDownTab = -1;
         private bool _mouseDownOnClose;
@@ -134,7 +134,7 @@ namespace FluentTabs
 
         private void ContinueDrag(Point p)
         {
-            // Dropping onto another FluentTabForm's strip transfers the tab there
+            // Dropping onto another FluentChromeTabsForm's strip transfers the tab there
             if (AllowTabDetach && TryTransferToOtherWindow())
             {
                 return;
@@ -199,7 +199,7 @@ namespace FluentTabs
 
             DetachTabCore(tab);
 
-            FluentTabForm newWindow = CreateDetachedWindow();
+            FluentChromeTabsForm newWindow = CreateDetachedWindow();
             newWindow.Theme = _theme;
             newWindow.StartPosition = FormStartPosition.Manual;
             newWindow.Size = NativeMethods.IsZoomed(Handle) ? RestoreBounds.Size : Size;
@@ -217,11 +217,11 @@ namespace FluentTabs
         /// Creates the window used when a tab is torn off. Override to customize; the default creates
         /// a new instance of the current type when it has a parameterless constructor.
         /// </summary>
-        protected virtual FluentTabForm CreateDetachedWindow()
+        protected virtual FluentChromeTabsForm CreateDetachedWindow()
         {
             try
             {
-                FluentTabForm window = (FluentTabForm) Activator.CreateInstance(GetType());
+                FluentChromeTabsForm window = (FluentChromeTabsForm) Activator.CreateInstance(GetType());
 
                 // A subclass constructor may have pre-populated tabs; the torn-off tab replaces them
                 while (window._tabs.Count > 0)
@@ -235,11 +235,11 @@ namespace FluentTabs
             }
             catch (MissingMethodException)
             {
-                return new FluentTabForm { Text = Text };
+                return new FluentChromeTabsForm { Text = Text };
             }
         }
 
-        /// <summary>Transfers the dragged tab to another FluentTabForm when the cursor is over its strip.</summary>
+        /// <summary>Transfers the dragged tab to another FluentChromeTabsForm when the cursor is over its strip.</summary>
         private bool TryTransferToOtherWindow()
         {
             Point screenCursor = Cursor.Position;
@@ -252,7 +252,7 @@ namespace FluentTabs
                 return false;
             }
 
-            foreach (FluentTabForm candidate in OpenTabForms)
+            foreach (FluentChromeTabsForm candidate in OpenTabForms)
             {
                 if (candidate == this || !candidate.Visible || candidate.WindowState == FormWindowState.Minimized || candidate.Handle != underCursor)
                 {

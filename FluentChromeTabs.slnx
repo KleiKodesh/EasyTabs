@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="FluentChromeTabs.Demo/FluentChromeTabs.Demo.csproj" />
+  <Project Path="FluentChromeTabs/FluentChromeTabs.csproj" />
+</Solution>

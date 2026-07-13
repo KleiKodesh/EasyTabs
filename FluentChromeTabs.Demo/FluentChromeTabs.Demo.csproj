@@ -5,13 +5,13 @@
     <TargetFramework>net48</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <LangVersion>7.3</LangVersion>
-    <RootNamespace>FluentTabs.Demo</RootNamespace>
-    <AssemblyName>FluentTabs.Demo</AssemblyName>
+    <RootNamespace>FluentChromeTabs.Demo</RootNamespace>
+    <AssemblyName>FluentChromeTabs.Demo</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\FluentTabs\FluentTabs.csproj" />
+    <ProjectReference Include="..\FluentChromeTabs\FluentChromeTabs.csproj" />
   </ItemGroup>
 
 </Project>

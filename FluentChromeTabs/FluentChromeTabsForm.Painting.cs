@@ -3,10 +3,10 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
-namespace FluentTabs
+namespace FluentChromeTabs
 {
     /// <summary>Painting of the tab strip: tabs, new-tab button, and caption buttons.</summary>
-    public partial class FluentTabForm
+    public partial class FluentChromeTabsForm
     {
         private int _hoverTab = -1;
         private bool _hoverTabClose;

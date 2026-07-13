@@ -1,7 +1,7 @@
 using System;
 using System.Windows.Forms;
 
-namespace FluentTabs.Demo
+namespace FluentChromeTabs.Demo
 {
     internal static class Program
     {
@@ -13,7 +13,7 @@ namespace FluentTabs.Demo
 
             // The context keeps the app alive while any tab window is open,
             // including windows created by tearing tabs off
-            Application.Run(new FluentTabsApplicationContext(new DemoForm()));
+            Application.Run(new FluentChromeTabsApplicationContext(new DemoForm()));
         }
     }
 }

@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace FluentTabs
+namespace FluentChromeTabs
 {
     internal static class NativeMethods
     {
