@@ -96,6 +96,114 @@ namespace FluentChromeTabs
         /// <summary>Whether tabs may be torn off into their own window or dropped onto other windows. Defaults to true.</summary>
         public bool AllowTabDetach { get; set; } = true;
 
+        /// <summary>
+        /// Whether the tab strip is shown. Hide it for fullscreen/kiosk modes: the reserved
+        /// padding collapses so content fills the whole window, and strip painting, mouse
+        /// handling, and caption-button hit testing are suspended until it is shown again.
+        /// Defaults to true.
+        /// </summary>
+        public bool StripVisible
+        {
+            get { return _stripVisible; }
+            set
+            {
+                if (_stripVisible == value)
+                {
+                    return;
+                }
+
+                _stripVisible = value;
+                ClearHoverState();
+                UpdateMetrics();
+                Invalidate();
+            }
+        }
+
+        private bool _stripVisible = true;
+
+        /// <summary>Height of the tab strip in logical pixels (scaled for DPI). Defaults to 40.</summary>
+        public int StripHeight
+        {
+            get { return _stripHeight; }
+            set
+            {
+                _stripHeight = Math.Max(28, value);
+                UpdateMetrics();
+                Invalidate();
+            }
+        }
+
+        private int _stripHeight = 40;
+
+        /// <summary>Height of the tab cards in logical pixels (scaled for DPI). Defaults to 32.</summary>
+        public int TabHeight
+        {
+            get { return _tabHeight; }
+            set
+            {
+                _tabHeight = Math.Max(20, value);
+                InvalidateStrip();
+            }
+        }
+
+        private int _tabHeight = 32;
+
+        /// <summary>
+        /// Whether the window's <see cref="Form.Icon" /> is drawn in the strip, in a slot just before
+        /// the start of the tabs (the visual right in a mirrored/RTL window). Defaults to false.
+        /// </summary>
+        public bool ShowWindowIcon
+        {
+            get { return _showWindowIcon; }
+            set
+            {
+                _showWindowIcon = value;
+                InvalidateStrip();
+            }
+        }
+
+        private bool _showWindowIcon;
+
+        /// <summary>
+        /// Whether a tab-list dropdown button is shown just before the start of the tabs (after the
+        /// window icon when both are enabled). Clicking it opens a Fluent-styled dropdown listing
+        /// every open tab (the selected one marked with an accent indicator); picking an entry
+        /// selects that tab. Hosts can append extra sections via <see cref="TabListOpening" />.
+        /// Defaults to false.
+        /// </summary>
+        public bool ShowTabListButton
+        {
+            get { return _showTabListButton; }
+            set
+            {
+                _showTabListButton = value;
+                InvalidateStrip();
+            }
+        }
+
+        private bool _showTabListButton;
+
+        /// <summary>Header text of the open-tabs section in the tab-list dropdown.</summary>
+        public string TabListOpenTabsHeader { get; set; } = "Open tabs";
+
+        /// <summary>
+        /// Optional accent color used for the active-tab indicator in the tab-list dropdown.
+        /// Falls back to the palette text color when null.
+        /// </summary>
+        public Color? AccentColor { get; set; }
+
+        /// <summary>
+        /// Raised right before the tab-list dropdown opens, with the open-tabs section already
+        /// populated. Handlers may append additional sections (e.g. recently closed documents).
+        /// </summary>
+        public event EventHandler<TabListOpeningEventArgs> TabListOpening;
+
+        /// <summary>The active palette, for controls that must match the strip theme.</summary>
+        internal Palette CurrentPalette
+        {
+            get { return _palette; }
+        }
+
         /// <summary>The color theme. <see cref="FluentChromeTabsTheme.Auto" /> follows the Windows setting live.</summary>
         public FluentChromeTabsTheme Theme
         {
@@ -358,6 +466,124 @@ namespace FluentChromeTabs
 
         #endregion
 
+        #region Window icon
+
+        private Icon _windowIconSource;
+        private Bitmap _windowIconBitmap;
+        private int _windowIconBitmapSize;
+
+        /// <summary>The window icon rendered at the requested size, cached until the icon or DPI changes.</summary>
+        private Bitmap GetWindowIconBitmap(int size)
+        {
+            if (!ReferenceEquals(_windowIconSource, Icon) || _windowIconBitmapSize != size)
+            {
+                _windowIconBitmap?.Dispose();
+                _windowIconBitmap = null;
+                _windowIconSource = Icon;
+                _windowIconBitmapSize = size;
+
+                if (Icon != null)
+                {
+                    // new Icon(icon, w, h) picks the closest embedded frame for crisp small sizes
+                    using (Icon sized = new Icon(Icon, size, size))
+                    {
+                        _windowIconBitmap = sized.ToBitmap();
+                    }
+                }
+            }
+
+            return _windowIconBitmap;
+        }
+
+        #endregion
+
+        #region Tab list dropdown
+
+        private TabListDropDown _tabListDropDown;
+        private int _tabListClosedTick;
+
+        /// <summary>True while the tab-list popup is on screen (drives the toggle's open state).</summary>
+        internal bool IsTabListOpen
+        {
+            get { return _tabListDropDown != null && !_tabListDropDown.IsDisposed && _tabListDropDown.Visible; }
+        }
+
+        /// <summary>
+        /// Opens the Fluent-styled popup listing every open tab plus any host-provided
+        /// sections; picking an entry activates it. Acts as a toggle: invoking it while
+        /// the popup is open (or immediately after the opening click dismissed it via
+        /// deactivation) closes instead of reopening.
+        /// </summary>
+        private void ShowTabListMenu()
+        {
+            if (IsTabListOpen)
+            {
+                _tabListDropDown.Close();
+                return;
+            }
+
+            // Reclicking the toggle: the mousedown first deactivates the popup (closing it),
+            // then reaches us — an immediate reopen would make the toggle feel stuck open.
+            if (Environment.TickCount - _tabListClosedTick < 300)
+            {
+                return;
+            }
+
+            List<TabListSection> sections = new List<TabListSection>();
+
+            if (_tabs.Count > 0)
+            {
+                TabListSection open = new TabListSection(TabListOpenTabsHeader);
+
+                foreach (FluentTab tab in _tabs)
+                {
+                    FluentTab captured = tab;
+                    open.Items.Add(new TabListItem(
+                        string.IsNullOrEmpty(tab.Title) ? "…" : tab.Title,
+                        tab == SelectedTab,
+                        () => SelectedTab = captured));
+                }
+
+                sections.Add(open);
+            }
+
+            TabListOpening?.Invoke(this, new TabListOpeningEventArgs(sections));
+
+            sections.RemoveAll(s => s.Items.Count == 0);
+
+            if (sections.Count == 0)
+            {
+                return;
+            }
+
+            TabListDropDown drop = new TabListDropDown(this, sections);
+            _tabListDropDown = drop;
+
+            drop.FormClosed += (s, e) =>
+            {
+                _tabListClosedTick = Environment.TickCount;
+                _tabListDropDown = null;
+                InvalidateStrip();
+                BeginInvoke(new Action(drop.Dispose));
+            };
+
+            // Anchor below the toggle. In a mirrored (RTL) window the anchor lands on the
+            // button's visual-right edge, so the popup right-aligns to it; clamp on-screen.
+            Rectangle rect = TabListButtonRect();
+            Point anchor = PointToScreen(new Point(rect.Left, StripHeightPx - Dpi(2)));
+            Rectangle workArea = Screen.FromControl(this).WorkingArea;
+
+            int x = IsMirrored ? anchor.X - drop.Width : anchor.X;
+            x = Math.Max(workArea.Left, Math.Min(x, workArea.Right - drop.Width));
+            int y = Math.Min(anchor.Y, workArea.Bottom - drop.Height);
+
+            drop.Location = new Point(x, y);
+            drop.Show(this);
+            InvalidateStrip();
+        }
+
+        #endregion
+
         #region Theme
 
         private void ApplyTheme()
@@ -435,19 +661,58 @@ namespace FluentChromeTabs
 
         #region Metrics
 
+        // Control.DeviceDpi can stay stuck at 96 in .NET Framework WinForms apps that are
+        // DPI-aware at the process level but run in the legacy WinForms DPI mode (no
+        // DpiAwareness app.config entry). Ask the window itself so strip metrics match
+        // the monitor's real scale; cached until the handle or DPI changes.
+        private int _effectiveDpi;
+
+        internal int EffectiveDpi
+        {
+            get
+            {
+                if (_effectiveDpi > 0)
+                {
+                    return _effectiveDpi;
+                }
+
+                if (IsHandleCreated)
+                {
+                    try
+                    {
+                        _effectiveDpi = (int) NativeMethods.GetDpiForWindow(Handle);
+                    }
+                    catch (EntryPointNotFoundException)
+                    {
+                        // Pre-1607 Windows 10 — fall back to whatever WinForms reports
+                        _effectiveDpi = DeviceDpi;
+                    }
+
+                    if (_effectiveDpi <= 0)
+                    {
+                        _effectiveDpi = DeviceDpi;
+                    }
+
+                    return _effectiveDpi;
+                }
+
+                return DeviceDpi;
+            }
+        }
+
         private int Dpi(int logical)
         {
-            return (int) Math.Round(logical * DeviceDpi / 96.0);
+            return (int) Math.Round(logical * EffectiveDpi / 96.0);
         }
 
         private int StripHeightPx
         {
-            get { return Dpi(40); }
+            get { return Dpi(_stripHeight); }
         }
 
         private int TabHeightPx
         {
-            get { return Dpi(32); }
+            get { return Dpi(Math.Min(_tabHeight, _stripHeight - 8)); }
         }
 
         /// <summary>Gap between the bottom of the floating tab cards and the strip edge (Edge style).</summary>
@@ -476,9 +741,46 @@ namespace FluentChromeTabs
             get { return Dpi(32); }
         }
 
+        private bool HasWindowIcon
+        {
+            get { return _showWindowIcon && Icon != null; }
+        }
+
+        private int WindowIconSizePx
+        {
+            get { return Dpi(16); }
+        }
+
+        /// <summary>Slot for the window icon, just before the start of the tabs.</summary>
+        private Rectangle WindowIconRect()
+        {
+            int size = WindowIconSizePx;
+            int tabTop = StripHeightPx - TabHeightPx - TabBottomMarginPx;
+            return new Rectangle(Dpi(10), tabTop + (TabHeightPx - size) / 2, size, size);
+        }
+
+        private int TabListButtonSizePx
+        {
+            get { return Dpi(24); }
+        }
+
+        /// <summary>Slot for the tab-list dropdown button, after the icon and before the tabs.</summary>
+        private Rectangle TabListButtonRect()
+        {
+            int size = TabListButtonSizePx;
+            int x = Dpi(8) + (HasWindowIcon ? WindowIconSizePx + Dpi(10) : 0);
+            int tabTop = StripHeightPx - TabHeightPx - TabBottomMarginPx;
+            return new Rectangle(x, tabTop + (TabHeightPx - size) / 2, size, size);
+        }
+
         private int TabsLeftPx
         {
-            get { return Dpi(8); }
+            get
+            {
+                return Dpi(8)
+                    + (HasWindowIcon ? WindowIconSizePx + Dpi(10) : 0)
+                    + (_showTabListButton ? TabListButtonSizePx + Dpi(6) : 0);
+            }
         }
 
         private int NewTabButtonSizePx
@@ -568,7 +870,7 @@ namespace FluentChromeTabs
 
         private void UpdateMetrics()
         {
-            Padding = new Padding(0, StripHeightPx, 0, 0);
+            Padding = _stripVisible ? new Padding(0, StripHeightPx, 0, 0) : Padding.Empty;
         }
 
         #endregion
@@ -587,6 +889,9 @@ namespace FluentChromeTabs
         protected override void OnHandleCreated(EventArgs e)
         {
             base.OnHandleCreated(e);
+
+            // Re-resolve the monitor DPI for the new handle before any metrics are computed
+            _effectiveDpi = 0;
 
             ApplyDwmDarkMode();
 
@@ -633,6 +938,7 @@ namespace FluentChromeTabs
         {
             base.OnDpiChanged(e);
 
+            _effectiveDpi = 0;
             UpdateMetrics();
             Invalidate();
         }
@@ -656,6 +962,7 @@ namespace FluentChromeTabs
             if (disposing)
             {
                 _toolTip.Dispose();
+                _windowIconBitmap?.Dispose();
             }
 
             base.Dispose(disposing);

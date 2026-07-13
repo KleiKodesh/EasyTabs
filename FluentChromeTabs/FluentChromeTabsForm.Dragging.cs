@@ -26,7 +26,7 @@ namespace FluentChromeTabs
         {
             base.OnMouseDown(e);
 
-            if (e.Y >= StripHeightPx)
+            if (!StripVisible || e.Y >= StripHeightPx)
             {
                 return;
             }
@@ -49,6 +49,10 @@ namespace FluentChromeTabs
                 else if (ShowNewTabButton && NewTabButtonRect().Contains(e.Location))
                 {
                     RequestNewTab();
+                }
+                else if (ShowTabListButton && TabListButtonRect().Contains(e.Location))
+                {
+                    ShowTabListMenu();
                 }
             }
             else if (e.Button == MouseButtons.Middle && tab >= 0 && _tabs[tab].CanClose)

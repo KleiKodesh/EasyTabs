@@ -27,6 +27,8 @@ namespace FluentChromeTabs
 
         internal const int DWMWA_USE_IMMERSIVE_DARK_MODE_OLD = 19;
         internal const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+        internal const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
+        internal const int DWMWCP_ROUNDSMALL = 3;
 
         internal const uint SWP_NOSIZE = 0x0001;
         internal const uint SWP_NOMOVE = 0x0002;
@@ -82,6 +84,9 @@ namespace FluentChromeTabs
 
         [DllImport("user32.dll")]
         internal static extern int GetSystemMetrics(int index);
+
+        [DllImport("user32.dll")]
+        internal static extern uint GetDpiForWindow(IntPtr hwnd);
 
         [DllImport("user32.dll")]
         internal static extern bool IsZoomed(IntPtr hwnd);

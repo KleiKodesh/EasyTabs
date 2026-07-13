@@ -33,8 +33,13 @@ namespace FluentChromeTabs
 
                         base.WndProc(ref m);
 
+                        // The maximized top inset compensates for the resize frame hanging off the
+                        // monitor edge — a borderless window (fullscreen mode) has no frame and sits
+                        // flush with the screen, so adding it there leaves a dead black band on top.
+                        bool maximizedWithFrame = NativeMethods.IsZoomed(Handle) && FormBorderStyle != FormBorderStyle.None;
+
                         parameters = (NativeMethods.NCCALCSIZE_PARAMS) Marshal.PtrToStructure(m.LParam, typeof(NativeMethods.NCCALCSIZE_PARAMS));
-                        parameters.rgrc0.top = originalTop + (NativeMethods.IsZoomed(Handle) ? ResizeBorderHeight() : 0);
+                        parameters.rgrc0.top = originalTop + (maximizedWithFrame ? ResizeBorderHeight() : 0);
                         Marshal.StructureToPtr(parameters, m.LParam, false);
 
                         m.Result = IntPtr.Zero;
@@ -55,7 +60,7 @@ namespace FluentChromeTabs
                         {
                             m.Result = new IntPtr(NativeMethods.HTTOP);
                         }
-                        else if (p.Y < StripHeightPx)
+                        else if (StripVisible && p.Y < StripHeightPx)
                         {
                             if (CaptionButtonRect(NativeMethods.HTCLOSE).Contains(p))
                             {
@@ -70,7 +75,9 @@ namespace FluentChromeTabs
                             {
                                 m.Result = new IntPtr(NativeMethods.HTMINBUTTON);
                             }
-                            else if (HitTab(p) < 0 && !(ShowNewTabButton && NewTabButtonRect().Contains(p)))
+                            else if (HitTab(p) < 0
+                                && !(ShowNewTabButton && NewTabButtonRect().Contains(p))
+                                && !(ShowTabListButton && TabListButtonRect().Contains(p)))
                             {
                                 // Empty strip drags the window and double-click maximizes, both natively
                                 m.Result = new IntPtr(NativeMethods.HTCAPTION);

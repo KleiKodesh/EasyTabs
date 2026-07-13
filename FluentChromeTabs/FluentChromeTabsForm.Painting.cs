@@ -11,12 +11,13 @@ namespace FluentChromeTabs
         private int _hoverTab = -1;
         private bool _hoverTabClose;
         private bool _hoverNewTab;
+        private bool _hoverTabListButton;
         private string _toolTipShownFor;
 
         /// <summary>Device-scale factor for glyph geometry (1.0 at 96 DPI).</summary>
         private float GlyphScale
         {
-            get { return DeviceDpi / 96f; }
+            get { return EffectiveDpi / 96f; }
         }
 
         /// <summary>
@@ -70,6 +71,17 @@ namespace FluentChromeTabs
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
 
+            if (!StripVisible)
+            {
+                // Fullscreen/kiosk: no strip — any uncovered client area shows the content surface
+                using (SolidBrush content = new SolidBrush(_palette.TabActive))
+                {
+                    g.FillRectangle(content, 0, 0, ClientSize.Width, ClientSize.Height);
+                }
+
+                return;
+            }
+
             using (SolidBrush strip = new SolidBrush(_palette.Strip))
             {
                 g.FillRectangle(strip, 0, 0, ClientSize.Width, StripHeightPx);
@@ -80,6 +92,16 @@ namespace FluentChromeTabs
             using (SolidBrush content = new SolidBrush(_palette.TabActive))
             {
                 g.FillRectangle(content, 0, StripHeightPx, ClientSize.Width, Math.Max(0, ClientSize.Height - StripHeightPx));
+            }
+
+            if (HasWindowIcon)
+            {
+                Bitmap iconBitmap = GetWindowIconBitmap(WindowIconSizePx);
+
+                if (iconBitmap != null)
+                {
+                    DrawUnmirroredImage(g, iconBitmap, WindowIconRect());
+                }
             }
 
             for (int i = 0; i < _tabs.Count; i++)
@@ -101,6 +123,11 @@ namespace FluentChromeTabs
             if (ShowNewTabButton)
             {
                 DrawNewTabButton(g);
+            }
+
+            if (ShowTabListButton)
+            {
+                DrawTabListButton(g);
             }
 
             DrawCaptionButton(g, NativeMethods.HTMINBUTTON);
@@ -226,6 +253,33 @@ namespace FluentChromeTabs
             }
         }
 
+        private void DrawTabListButton(Graphics g)
+        {
+            Rectangle rect = TabListButtonRect();
+            bool open = IsTabListOpen;
+
+            if ((_hoverTabListButton && !_dragging) || open)
+            {
+                double amount = open ? 0.16 : 0.12;
+
+                using (SolidBrush brush = new SolidBrush(Palette.Blend(_palette.Strip, _palette.TextActive, amount)))
+                using (GraphicsPath path = RoundedRectPath(rect, Dpi(4)))
+                {
+                    g.FillPath(brush, path);
+                }
+            }
+
+            // Fluent chevron-down: two strokes meeting at the bottom center
+            using (Pen pen = GlyphPen(StripTextColor(false)))
+            {
+                float cx = rect.Left + rect.Width / 2f;
+                float cy = rect.Top + rect.Height / 2f;
+                float arm = 3.5f * GlyphScale;
+                g.DrawLine(pen, cx - arm, cy - arm / 2f, cx, cy + arm / 2f);
+                g.DrawLine(pen, cx, cy + arm / 2f, cx + arm, cy - arm / 2f);
+            }
+        }
+
         private void DrawCaptionButton(Graphics g, int htCode)
         {
             Rectangle rect = CaptionButtonRect(htCode);
@@ -307,15 +361,23 @@ namespace FluentChromeTabs
 
         private void UpdateHoverState(Point p)
         {
+            if (!StripVisible)
+            {
+                ClearHoverState();
+                return;
+            }
+
             int tab = HitTab(p);
             bool overClose = tab >= 0 && TabShowsClose(tab) && TabCloseRect(TabRect(tab)).Contains(p);
             bool overNewTab = ShowNewTabButton && p.Y < StripHeightPx && NewTabButtonRect().Contains(p);
+            bool overTabList = ShowTabListButton && p.Y < StripHeightPx && TabListButtonRect().Contains(p);
 
-            if (tab != _hoverTab || overClose != _hoverTabClose || overNewTab != _hoverNewTab)
+            if (tab != _hoverTab || overClose != _hoverTabClose || overNewTab != _hoverNewTab || overTabList != _hoverTabListButton)
             {
                 _hoverTab = tab;
                 _hoverTabClose = overClose;
                 _hoverNewTab = overNewTab;
+                _hoverTabListButton = overTabList;
                 InvalidateStrip();
                 UpdateToolTip();
             }
@@ -323,11 +385,12 @@ namespace FluentChromeTabs
 
         private void ClearHoverState()
         {
-            if (_hoverTab != -1 || _hoverNewTab || _hoverTabClose)
+            if (_hoverTab != -1 || _hoverNewTab || _hoverTabClose || _hoverTabListButton)
             {
                 _hoverTab = -1;
                 _hoverTabClose = false;
                 _hoverNewTab = false;
+                _hoverTabListButton = false;
                 InvalidateStrip();
                 UpdateToolTip();
             }
