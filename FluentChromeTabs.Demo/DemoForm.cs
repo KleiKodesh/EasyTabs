@@ -13,6 +13,7 @@ namespace FluentChromeTabs.Demo
             AddTab("Welcome", BuildWelcomeContent());
             AddTab("Editor", BuildEditorContent());
             AddTab("Colors", BuildColorsContent());
+            AddTab("עברית", BuildPlaceholderContent("תמיכה מלאה בעברית ובפריסה מימין לשמאל.\nהכרטיסיות, הטקסט וכפתורי החלון מתהפכים אוטומטית."));
             AddTab("Pinned", BuildPinnedContent()).CanClose = false;
             SelectedIndex = 0;
 
@@ -122,11 +123,27 @@ namespace FluentChromeTabs.Demo
             };
             looseMode.Click += (sender, e) => new LooseDemoForm { Theme = Theme }.Show();
 
+            Button rtlToggle = new Button
+            {
+                Text = "עברית / RTL",
+                Font = new Font("Segoe UI", 10f),
+                Size = new Size(140, 36),
+                Location = new Point(644, 380),
+                FlatStyle = FlatStyle.Flat
+            };
+            rtlToggle.Click += (sender, e) =>
+            {
+                bool enable = RightToLeft != RightToLeft.Yes;
+                RightToLeft = enable ? RightToLeft.Yes : RightToLeft.No;
+                RightToLeftLayout = enable;
+            };
+
             panel.Controls.Add(title);
             panel.Controls.Add(body);
             panel.Controls.Add(themeToggle);
             panel.Controls.Add(autoTheme);
             panel.Controls.Add(looseMode);
+            panel.Controls.Add(rtlToggle);
 
             return panel;
         }

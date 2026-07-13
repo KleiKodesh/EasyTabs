@@ -32,6 +32,9 @@ animations all stay perfectly smooth. One window, no chasing, no flicker.
 - 📌 **Pinnable tabs** (`CanClose = false`), per-tab icons, tooltips for truncated titles,
   middle-click close
 - 🖥 **Per-monitor V2 DPI** support
+- 🌍 **Full RTL / Hebrew support** — set the standard `RightToLeft = Yes` and
+  `RightToLeftLayout = true` and the whole chrome mirrors: tabs flow from the right, caption
+  buttons move left, bidi titles render correctly, and favicons stay unmirrored
 - 🧩 **Simple API** — inherit one form class, call `AddTab`
 
 ## Install

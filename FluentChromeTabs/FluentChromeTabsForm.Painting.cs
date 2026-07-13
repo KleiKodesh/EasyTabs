@@ -32,6 +32,26 @@ namespace FluentChromeTabs
             return pen;
         }
 
+        /// <summary>
+        /// Draws an image so it stays readable in a mirrored (WS_EX_LAYOUTRTL) window: GDI flips all
+        /// output in RTL layout, so the image is pre-flipped locally to cancel that out.
+        /// </summary>
+        private void DrawUnmirroredImage(Graphics g, Image image, Rectangle rect)
+        {
+            if (IsMirrored)
+            {
+                GraphicsState state = g.Save();
+                g.TranslateTransform(rect.Left * 2 + rect.Width, 0);
+                g.ScaleTransform(-1f, 1f);
+                g.DrawImage(image, rect);
+                g.Restore(state);
+            }
+            else
+            {
+                g.DrawImage(image, rect);
+            }
+        }
+
         private static GraphicsPath RoundedRectPathF(float x, float y, float w, float h, float r)
         {
             GraphicsPath path = new GraphicsPath();
@@ -110,7 +130,7 @@ namespace FluentChromeTabs
                         g.FillPath(brush, path);
                     }
 
-                    // Edge shows a soft outline on the active tab only in light themes; dark tabs are borderless
+                    // A soft outline on the active tab in light themes only; dark tabs are borderless
                     if (active && !_isDark)
                     {
                         using (Pen pen = new Pen(_palette.TabBorder))
@@ -120,31 +140,31 @@ namespace FluentChromeTabs
                     }
                 }
             }
-            else if (index >= 0 && index < _tabs.Count - 1 && index + 1 != _selectedIndex && index + 1 != _hoverTab)
-            {
-                using (Pen pen = new Pen(_palette.Separator))
-                {
-                    int x = rect.Right + TabGapPx / 2;
-                    g.DrawLine(pen, x, rect.Top + Dpi(8), x, rect.Bottom - Dpi(8));
-                }
-            }
 
             int textLeft = rect.Left + Dpi(10);
 
             if (tab.Icon != null)
             {
                 int iconSize = Dpi(16);
-                g.DrawImage(tab.Icon, new Rectangle(textLeft, rect.Top + (rect.Height - iconSize) / 2, iconSize, iconSize));
+                Rectangle iconRect = new Rectangle(textLeft, rect.Top + (rect.Height - iconSize) / 2, iconSize, iconSize);
+                DrawUnmirroredImage(g, tab.Icon, iconRect);
                 textLeft += iconSize + Dpi(6);
             }
 
             bool showClose = TabShowsClose(index);
             int textRight = showClose ? TabCloseRect(rect).Left - Dpi(4) : rect.Right - Dpi(8);
 
+            TextFormatFlags textFlags = TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix;
+
+            if (RightToLeft == RightToLeft.Yes)
+            {
+                // Correct bidi shaping and punctuation order for Hebrew/Arabic titles; in a mirrored
+                // (RightToLeftLayout) window GDI flips the output, so "Left" renders at the visual right
+                textFlags |= TextFormatFlags.RightToLeft;
+            }
+
             Rectangle textRect = new Rectangle(textLeft, rect.Top, Math.Max(0, textRight - textLeft), rect.Height);
-            TextRenderer.DrawText(
-                g, tab.Title, Font, textRect, StripTextColor(active),
-                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+            TextRenderer.DrawText(g, tab.Title, Font, textRect, StripTextColor(active), textFlags);
 
             if (showClose)
             {
