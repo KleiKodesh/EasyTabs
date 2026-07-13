@@ -15,12 +15,13 @@ namespace FluentChromeTabs
         Dark
     }
 
-    /// <summary>Resolved color set for painting the tab strip. Modeled on the Windows 11 title bar palette.</summary>
+    /// <summary>Resolved color set for painting the tab strip. Modeled on the Edge / Windows 11 title bar palette.</summary>
     internal sealed class Palette
     {
         public Color Strip;
         public Color TabActive;
         public Color TabHover;
+        public Color TabBorder;
         public Color TextActive;
         public Color TextInactive;
         public Color Separator;
@@ -33,6 +34,7 @@ namespace FluentChromeTabs
             Strip = Color.FromArgb(243, 243, 243),
             TabActive = Color.White,
             TabHover = Color.FromArgb(234, 234, 234),
+            TabBorder = Color.FromArgb(214, 214, 214),
             TextActive = Color.FromArgb(26, 26, 26),
             TextInactive = Color.FromArgb(96, 96, 96),
             Separator = Color.FromArgb(208, 208, 208),
@@ -44,8 +46,9 @@ namespace FluentChromeTabs
         public static readonly Palette Dark = new Palette
         {
             Strip = Color.FromArgb(32, 32, 32),
-            TabActive = Color.FromArgb(45, 45, 45),
-            TabHover = Color.FromArgb(41, 41, 41),
+            TabActive = Color.FromArgb(51, 51, 51),
+            TabHover = Color.FromArgb(43, 43, 43),
+            TabBorder = Color.FromArgb(72, 72, 72),
             TextActive = Color.FromArgb(245, 245, 245),
             TextInactive = Color.FromArgb(158, 158, 158),
             Separator = Color.FromArgb(63, 63, 63),
@@ -85,6 +88,7 @@ namespace FluentChromeTabs
                 Strip = chrome,
                 TabActive = tabActive,
                 TabHover = Blend(chrome, tabActive, 0.45),
+                TabBorder = Blend(tabActive, text, 0.18),
                 TextActive = text,
                 TextInactive = Blend(text, chrome, 0.35),
                 Separator = Blend(chrome, text, 0.25),

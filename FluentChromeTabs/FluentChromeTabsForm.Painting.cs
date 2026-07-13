@@ -58,16 +58,6 @@ namespace FluentChromeTabs
             DrawCaptionButton(g, NativeMethods.HTCLOSE);
         }
 
-        private static GraphicsPath RoundedTopPath(Rectangle r, int radius)
-        {
-            GraphicsPath path = new GraphicsPath();
-            path.AddArc(r.Left, r.Top, radius * 2, radius * 2, 180, 90);
-            path.AddArc(r.Right - radius * 2, r.Top, radius * 2, radius * 2, 270, 90);
-            path.AddLine(r.Right, r.Bottom, r.Left, r.Bottom);
-            path.CloseFigure();
-            return path;
-        }
-
         private Color StripTextColor(bool activeTab)
         {
             Color color = activeTab ? _palette.TextActive : _palette.TextInactive;
@@ -82,10 +72,21 @@ namespace FluentChromeTabs
 
             if (active || hover)
             {
-                using (GraphicsPath path = RoundedTopPath(rect, TabRadiusPx))
-                using (SolidBrush brush = new SolidBrush(active ? _palette.TabActive : _palette.TabHover))
+                // Edge style: the tab is a floating rounded card; the active one gets a subtle outline
+                using (GraphicsPath path = RoundedRectPath(rect, TabRadiusPx))
                 {
-                    g.FillPath(brush, path);
+                    using (SolidBrush brush = new SolidBrush(active ? _palette.TabActive : _palette.TabHover))
+                    {
+                        g.FillPath(brush, path);
+                    }
+
+                    if (active)
+                    {
+                        using (Pen pen = new Pen(_palette.TabBorder))
+                        {
+                            g.DrawPath(pen, path);
+                        }
+                    }
                 }
             }
             else if (index >= 0 && index < _tabs.Count - 1 && index + 1 != _selectedIndex && index + 1 != _hoverTab)

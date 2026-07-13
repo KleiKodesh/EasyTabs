@@ -447,7 +447,13 @@ namespace FluentChromeTabs
 
         private int TabHeightPx
         {
-            get { return Dpi(32); }
+            get { return Dpi(30); }
+        }
+
+        /// <summary>Gap between the bottom of the floating tab cards and the strip edge (Edge style).</summary>
+        private int TabBottomMarginPx
+        {
+            get { return Dpi(5); }
         }
 
         private int TabGapPx
@@ -513,7 +519,8 @@ namespace FluentChromeTabs
 
         private Rectangle TabRect(int index)
         {
-            return new Rectangle(TabsLeftPx + index * (TabWidthPx + TabGapPx), StripHeightPx - TabHeightPx, TabWidthPx, TabHeightPx);
+            return new Rectangle(
+                TabsLeftPx + index * (TabWidthPx + TabGapPx), StripHeightPx - TabHeightPx - TabBottomMarginPx, TabWidthPx, TabHeightPx);
         }
 
         private Rectangle TabCloseRect(Rectangle tabRect)
@@ -531,7 +538,8 @@ namespace FluentChromeTabs
         {
             int last = _tabs.Count > 0 ? TabRect(_tabs.Count - 1).Right : TabsLeftPx;
             int size = NewTabButtonSizePx;
-            return new Rectangle(last + Dpi(8), StripHeightPx - TabHeightPx + (TabHeightPx - size) / 2, size, size);
+            int tabTop = StripHeightPx - TabHeightPx - TabBottomMarginPx;
+            return new Rectangle(last + Dpi(8), tabTop + (TabHeightPx - size) / 2, size, size);
         }
 
         private Rectangle CaptionButtonRect(int htCode)
