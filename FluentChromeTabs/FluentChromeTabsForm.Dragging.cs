@@ -19,6 +19,8 @@ namespace FluentChromeTabs
         private int _dragOffsetX;
         private int _dragVisualX;
 
+        private bool _dividerDragging;
+
         /// <summary>How far the cursor may leave the strip vertically before the tab tears off, in logical pixels.</summary>
         private const int DetachThreshold = 36;
 
@@ -28,6 +30,15 @@ namespace FluentChromeTabs
 
             if (!StripVisible || e.Y >= StripHeightPx)
             {
+                return;
+            }
+
+            // The split divider is grabbed before anything else — it sits between regions
+            if (e.Button == MouseButtons.Left && SplitStrip && DividerHitRect.Contains(e.Location))
+            {
+                _dividerDragging = true;
+                Capture = true;
+                InvalidateStrip();
                 return;
             }
 
@@ -46,13 +57,22 @@ namespace FluentChromeTabs
                         SelectTabCore(tab);
                     }
                 }
-                else if (ShowNewTabButton && NewTabButtonRect().Contains(e.Location))
+                else
                 {
-                    RequestNewTab();
-                }
-                else if (ShowTabListButton && TabListButtonRect().Contains(e.Location))
-                {
-                    ShowTabListMenu();
+                    for (int group = 0; group < GroupCount; group++)
+                    {
+                        if (ShowNewTabButton && NewTabButtonRect(group).Contains(e.Location))
+                        {
+                            RequestNewTab(group);
+                            break;
+                        }
+
+                        if (ShowTabListButton && TabListButtonRect(group).Contains(e.Location))
+                        {
+                            ShowTabListMenu(group);
+                            break;
+                        }
+                    }
                 }
             }
             else if (e.Button == MouseButtons.Middle && tab >= 0 && _tabs[tab].CanClose)
@@ -66,6 +86,16 @@ namespace FluentChromeTabs
             base.OnMouseMove(e);
 
             SetHotCaptionButton(0);
+
+            if (_dividerDragging)
+            {
+                // Live resize, mirrored to the host so the app's split view follows in tandem.
+                // Dragging leaves pixel-pinned mode; the host re-pins from its next layout.
+                _dividerOverrideLeft = -1;
+                SplitRatio = (double) e.X / Math.Max(1, ClientSize.Width);
+                SplitRatioChanged?.Invoke(this, EventArgs.Empty);
+                return;
+            }
 
             if (_dragging)
             {
@@ -92,7 +122,13 @@ namespace FluentChromeTabs
         {
             base.OnMouseUp(e);
 
-            if (_dragging)
+            if (_dividerDragging)
+            {
+                _dividerDragging = false;
+                Capture = false;
+                InvalidateStrip();
+            }
+            else if (_dragging)
             {
                 EndDrag();
             }
@@ -151,33 +187,29 @@ namespace FluentChromeTabs
                 return;
             }
 
-            int maxX = TabsLeftPx + (_tabs.Count - 1) * (TabWidthPx + TabGapPx);
-            _dragVisualX = Math.Max(TabsLeftPx, Math.Min(p.X - _dragOffsetX, maxX));
+            // Reorder is confined to the dragged tab's own split region
+            int group = GroupOf(_tabs[_dragIndex]);
+            int count = GroupTabCount(group);
+            int tabsLeft = GroupTabsLeftPx(group);
+            int slot = TabWidthPx(group) + TabGapPx;
+            int maxX = tabsLeft + (count - 1) * slot;
 
-            int slot = TabWidthPx + TabGapPx;
-            int target = (int) Math.Round((double) (_dragVisualX - TabsLeftPx) / slot);
-            target = Math.Max(0, Math.Min(target, _tabs.Count - 1));
+            _dragVisualX = Math.Max(tabsLeft, Math.Min(p.X - _dragOffsetX, maxX));
 
-            if (target != _dragIndex)
+            int target = (int) Math.Round((double) (_dragVisualX - tabsLeft) / slot);
+            target = Math.Max(0, Math.Min(target, count - 1));
+
+            if (target != GroupPosition(_dragIndex))
             {
-                FluentTab tab = _tabs[_dragIndex];
+                FluentTab dragged = _tabs[_dragIndex];
+                FluentTab selected = SelectedTab;
+                int targetGlobal = GlobalIndexOfGroupPosition(group, target);
+
                 _tabs.RemoveAt(_dragIndex);
-                _tabs.Insert(target, tab);
+                _tabs.Insert(Math.Min(targetGlobal, _tabs.Count), dragged);
 
-                if (_selectedIndex == _dragIndex)
-                {
-                    _selectedIndex = target;
-                }
-                else if (_dragIndex < _selectedIndex && target >= _selectedIndex)
-                {
-                    _selectedIndex--;
-                }
-                else if (_dragIndex > _selectedIndex && target <= _selectedIndex)
-                {
-                    _selectedIndex++;
-                }
-
-                _dragIndex = target;
+                _selectedIndex = selected == null ? -1 : _tabs.IndexOf(selected);
+                _dragIndex = _tabs.IndexOf(dragged);
             }
 
             InvalidateStrip();
@@ -208,7 +240,7 @@ namespace FluentChromeTabs
             newWindow.CustomThemeColor = _customThemeColor;
             newWindow.StartPosition = FormStartPosition.Manual;
             newWindow.Size = NativeMethods.IsZoomed(Handle) ? RestoreBounds.Size : Size;
-            newWindow.Location = new Point(screenCursor.X - dragOffsetX - newWindow.TabsLeftPx, screenCursor.Y - newWindow.StripHeightPx / 2);
+            newWindow.Location = new Point(screenCursor.X - dragOffsetX - newWindow.GroupTabsLeftPx(0), screenCursor.Y - newWindow.StripHeightPx / 2);
             newWindow.AddTab(tab);
             newWindow.Show();
             newWindow.Activate();
@@ -280,9 +312,10 @@ namespace FluentChromeTabs
 
                 DetachTabCore(tab);
 
-                int slot = candidate.TabWidthPx + candidate.TabGapPx;
-                int index = Math.Max(0, Math.Min((local.X - candidate.TabsLeftPx + slot / 2) / Math.Max(1, slot), candidate._tabs.Count));
+                int slot = candidate.TabWidthPx(0) + candidate.TabGapPx;
+                int index = Math.Max(0, Math.Min((local.X - candidate.GroupTabsLeftPx(0) + slot / 2) / Math.Max(1, slot), candidate._tabs.Count));
 
+                tab.Group = 0;
                 candidate.AttachTab(index, tab);
                 candidate.SelectTabCore(candidate._tabs.IndexOf(tab));
                 candidate.Activate();
@@ -290,7 +323,7 @@ namespace FluentChromeTabs
                 // Continue the drag inside the target window
                 candidate._dragging = true;
                 candidate._dragIndex = candidate._tabs.IndexOf(tab);
-                candidate._dragOffsetX = Math.Min(offset, candidate.TabWidthPx - Dpi(16));
+                candidate._dragOffsetX = Math.Min(offset, candidate.TabWidthPx(0) - Dpi(16));
                 candidate._dragVisualX = local.X - candidate._dragOffsetX;
                 candidate.Capture = true;
                 candidate.InvalidateStrip();

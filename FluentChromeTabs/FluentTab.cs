@@ -82,6 +82,45 @@ namespace FluentChromeTabs
             }
         }
 
+        /// <summary>
+        /// Which strip region the tab lives in when the owner's <see cref="FluentChromeTabsForm.SplitStrip" />
+        /// is enabled: 0 = primary (inline start), 1 = secondary. Ignored when the strip is not split.
+        /// </summary>
+        public int Group
+        {
+            get { return _group; }
+            set
+            {
+                _group = value == 1 ? 1 : 0;
+                if (Owner != null)
+                {
+                    Owner.InvalidateStrip();
+                }
+            }
+        }
+
+        private int _group;
+
+        /// <summary>
+        /// Draws the tab with the active-tab surface even when it is not the window's
+        /// <see cref="FluentChromeTabsForm.SelectedTab" />. Used by split strips, where each
+        /// region shows its own active tab.
+        /// </summary>
+        public bool Highlighted
+        {
+            get { return _highlighted; }
+            set
+            {
+                _highlighted = value;
+                if (Owner != null)
+                {
+                    Owner.InvalidateStrip();
+                }
+            }
+        }
+
+        private bool _highlighted;
+
         /// <summary>Arbitrary user data associated with the tab.</summary>
         public object Tag { get; set; }
     }
@@ -121,5 +160,8 @@ namespace FluentChromeTabs
         public Control Content { get; set; }
 
         public bool Cancel { get; set; }
+
+        /// <summary>Which strip region's "+" was pressed (0 unless <see cref="FluentChromeTabsForm.SplitStrip" /> is on).</summary>
+        public int Group { get; set; }
     }
 }

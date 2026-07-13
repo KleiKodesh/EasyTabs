@@ -97,6 +97,76 @@ namespace FluentChromeTabs
         public bool AllowTabDetach { get; set; } = true;
 
         /// <summary>
+        /// Splits the strip down the middle into two parallel tab regions. Tabs are laid out in
+        /// the region given by <see cref="FluentTab.Group" /> (0 = inline start, 1 = inline end),
+        /// and each region gets its own tab-list toggle and "+" button (gestures report the group).
+        /// Each region marks its own active tab via <see cref="FluentTab.Highlighted" />.
+        /// Defaults to false.
+        /// </summary>
+        public bool SplitStrip
+        {
+            get { return _splitStrip; }
+            set
+            {
+                _splitStrip = value;
+                InvalidateStrip();
+            }
+        }
+
+        private bool _splitStrip;
+
+        /// <summary>
+        /// Where the split divider sits, as region 0's share of the client width (0.15–0.85).
+        /// Setting it programmatically does not raise <see cref="SplitRatioChanged" /> — that
+        /// event reports only user drags of the divider. Defaults to 0.5.
+        /// </summary>
+        public double SplitRatio
+        {
+            get { return _splitRatio; }
+            set
+            {
+                double clamped = Math.Max(0.15, Math.Min(0.85, value));
+
+                if (Math.Abs(clamped - _splitRatio) > 0.0001)
+                {
+                    _splitRatio = clamped;
+                    InvalidateStrip();
+                }
+            }
+        }
+
+        private double _splitRatio = 0.5;
+
+        /// <summary>Raised while the user drags the split divider (read <see cref="SplitRatio" />).</summary>
+        public event EventHandler SplitRatioChanged;
+
+        private int _dividerOverrideLeft = -1;
+        private int _dividerOverrideWidth;
+
+        /// <summary>
+        /// Pins the split divider to exact client pixels, letting a host align it perfectly
+        /// with a content divider below the strip (no fraction rounding). Pass a negative
+        /// left to return to <see cref="SplitRatio" />-based placement. A user drag of the
+        /// divider clears the pin until it is set again.
+        /// </summary>
+        public void SetSplitDividerPixels(int leftPx, int widthPx)
+        {
+            _dividerOverrideLeft = leftPx;
+            _dividerOverrideWidth = Math.Max(1, widthPx);
+            InvalidateStrip();
+        }
+
+        private int GroupCount
+        {
+            get { return _splitStrip ? 2 : 1; }
+        }
+
+        private int GroupOf(FluentTab tab)
+        {
+            return _splitStrip && tab.Group == 1 ? 1 : 0;
+        }
+
+        /// <summary>
         /// Whether the tab strip is shown. Hide it for fullscreen/kiosk modes: the reserved
         /// padding collapses so content fills the whole window, and strip painting, mouse
         /// handling, and caption-button hit testing are suspended until it is shown again.
@@ -187,10 +257,16 @@ namespace FluentChromeTabs
         public string TabListOpenTabsHeader { get; set; } = "Open tabs";
 
         /// <summary>
-        /// Optional accent color used for the active-tab indicator in the tab-list dropdown.
-        /// Falls back to the palette text color when null.
+        /// Optional accent color used for the active-tab indicator in the tab-list dropdown
+        /// and the split divider's hover highlight. Falls back to the palette text color when null.
         /// </summary>
         public Color? AccentColor { get; set; }
+
+        /// <summary>
+        /// Optional color for the split divider's resting state, letting it match a host
+        /// content divider exactly. Falls back to the palette separator when null.
+        /// </summary>
+        public Color? SplitDividerColor { get; set; }
 
         /// <summary>
         /// Raised right before the tab-list dropdown opens, with the open-tabs section already
@@ -340,11 +416,12 @@ namespace FluentChromeTabs
 
         /// <summary>
         /// Requests a new tab exactly as the "+" button does: raises <see cref="NewTabRequested" /> and adds
-        /// the resulting tab (a blank one when no handler set content).
+        /// the resulting tab (a blank one when no handler set content). <paramref name="group" /> reports
+        /// which split region's "+" was pressed (always 0 when the strip is not split).
         /// </summary>
-        public void RequestNewTab()
+        public void RequestNewTab(int group = 0)
         {
-            NewTabRequestedEventArgs args = new NewTabRequestedEventArgs();
+            NewTabRequestedEventArgs args = new NewTabRequestedEventArgs { Group = group };
 
             if (args.Title == "New Tab" && _newTabCounter > 0)
             {
@@ -359,7 +436,8 @@ namespace FluentChromeTabs
             }
 
             _newTabCounter++;
-            AddTab(args.Title, args.Content);
+            FluentTab added = AddTab(args.Title, args.Content);
+            added.Group = group;
         }
 
         #endregion
@@ -501,6 +579,7 @@ namespace FluentChromeTabs
 
         private TabListDropDown _tabListDropDown;
         private int _tabListClosedTick;
+        private int _tabListOpenGroup = -1;
 
         /// <summary>True while the tab-list popup is on screen (drives the toggle's open state).</summary>
         internal bool IsTabListOpen
@@ -508,13 +587,19 @@ namespace FluentChromeTabs
             get { return _tabListDropDown != null && !_tabListDropDown.IsDisposed && _tabListDropDown.Visible; }
         }
 
+        /// <summary>The split region whose tab-list popup is open, or -1 when none is.</summary>
+        internal int TabListOpenGroup
+        {
+            get { return IsTabListOpen ? _tabListOpenGroup : -1; }
+        }
+
         /// <summary>
-        /// Opens the Fluent-styled popup listing every open tab plus any host-provided
+        /// Opens the Fluent-styled popup listing the region's open tabs plus any host-provided
         /// sections; picking an entry activates it. Acts as a toggle: invoking it while
         /// the popup is open (or immediately after the opening click dismissed it via
         /// deactivation) closes instead of reopening.
         /// </summary>
-        private void ShowTabListMenu()
+        private void ShowTabListMenu(int group)
         {
             if (IsTabListOpen)
             {
@@ -530,24 +615,28 @@ namespace FluentChromeTabs
             }
 
             List<TabListSection> sections = new List<TabListSection>();
+            TabListSection open = new TabListSection(TabListOpenTabsHeader);
 
-            if (_tabs.Count > 0)
+            foreach (FluentTab tab in _tabs)
             {
-                TabListSection open = new TabListSection(TabListOpenTabsHeader);
-
-                foreach (FluentTab tab in _tabs)
+                if (_splitStrip && GroupOf(tab) != group)
                 {
-                    FluentTab captured = tab;
-                    open.Items.Add(new TabListItem(
-                        string.IsNullOrEmpty(tab.Title) ? "…" : tab.Title,
-                        tab == SelectedTab,
-                        () => SelectedTab = captured));
+                    continue;
                 }
 
+                FluentTab captured = tab;
+                open.Items.Add(new TabListItem(
+                    string.IsNullOrEmpty(tab.Title) ? "…" : tab.Title,
+                    tab == SelectedTab || tab.Highlighted,
+                    () => SelectedTab = captured));
+            }
+
+            if (open.Items.Count > 0)
+            {
                 sections.Add(open);
             }
 
-            TabListOpening?.Invoke(this, new TabListOpeningEventArgs(sections));
+            TabListOpening?.Invoke(this, new TabListOpeningEventArgs(sections, group));
 
             sections.RemoveAll(s => s.Items.Count == 0);
 
@@ -558,18 +647,20 @@ namespace FluentChromeTabs
 
             TabListDropDown drop = new TabListDropDown(this, sections);
             _tabListDropDown = drop;
+            _tabListOpenGroup = group;
 
             drop.FormClosed += (s, e) =>
             {
                 _tabListClosedTick = Environment.TickCount;
                 _tabListDropDown = null;
+                _tabListOpenGroup = -1;
                 InvalidateStrip();
                 BeginInvoke(new Action(drop.Dispose));
             };
 
             // Anchor below the toggle. In a mirrored (RTL) window the anchor lands on the
             // button's visual-right edge, so the popup right-aligns to it; clamp on-screen.
-            Rectangle rect = TabListButtonRect();
+            Rectangle rect = TabListButtonRect(group);
             Point anchor = PointToScreen(new Point(rect.Left, StripHeightPx - Dpi(2)));
             Rectangle workArea = Screen.FromControl(this).WorkingArea;
 
@@ -764,65 +855,140 @@ namespace FluentChromeTabs
             get { return Dpi(24); }
         }
 
-        /// <summary>Slot for the tab-list dropdown button, after the icon and before the tabs.</summary>
-        private Rectangle TabListButtonRect()
-        {
-            int size = TabListButtonSizePx;
-            int x = Dpi(8) + (HasWindowIcon ? WindowIconSizePx + Dpi(10) : 0);
-            int tabTop = StripHeightPx - TabHeightPx - TabBottomMarginPx;
-            return new Rectangle(x, tabTop + (TabHeightPx - size) / 2, size, size);
-        }
-
-        private int TabsLeftPx
-        {
-            get
-            {
-                return Dpi(8)
-                    + (HasWindowIcon ? WindowIconSizePx + Dpi(10) : 0)
-                    + (_showTabListButton ? TabListButtonSizePx + Dpi(6) : 0);
-            }
-        }
-
         private int NewTabButtonSizePx
         {
             get { return Dpi(28); }
         }
 
-        private int TabsRightLimitPx
+        /// <summary>X coordinate of the split divider (pixel pin when set, else <see cref="SplitRatio" />).</summary>
+        private int DividerXPx
         {
             get
             {
-                int reserved = 3 * CaptionButtonWidthPx + Dpi(8);
-
-                if (ShowNewTabButton)
-                {
-                    reserved += NewTabButtonSizePx + Dpi(8);
-                }
-
-                return ClientSize.Width - reserved;
+                return _dividerOverrideLeft >= 0
+                    ? _dividerOverrideLeft + _dividerOverrideWidth / 2
+                    : (int) Math.Round(ClientSize.Width * _splitRatio);
             }
         }
 
-        private int TabWidthPx
+        /// <summary>Divider grab area — wider than the painted line, like the Vue divider's hit zone.</summary>
+        private Rectangle DividerHitRect
         {
-            get
+            get { return new Rectangle(DividerXPx - Dpi(10), 0, Dpi(20), StripHeightPx); }
+        }
+
+        /// <summary>Inline-start edge of a strip region (icon slot only precedes region 0).</summary>
+        private int RegionLeftPx(int group)
+        {
+            return group == 1
+                ? DividerXPx + Dpi(8)
+                : Dpi(8) + (HasWindowIcon ? WindowIconSizePx + Dpi(10) : 0);
+        }
+
+        /// <summary>Inline-end edge of a strip region (caption buttons bound the last region).</summary>
+        private int RegionRightPx(int group)
+        {
+            return _splitStrip && group == 0
+                ? DividerXPx - Dpi(8)
+                : ClientSize.Width - (3 * CaptionButtonWidthPx + Dpi(8));
+        }
+
+        /// <summary>Slot for a region's tab-list dropdown button, before its tabs.</summary>
+        private Rectangle TabListButtonRect(int group)
+        {
+            int size = TabListButtonSizePx;
+            int tabTop = StripHeightPx - TabHeightPx - TabBottomMarginPx;
+            return new Rectangle(RegionLeftPx(group), tabTop + (TabHeightPx - size) / 2, size, size);
+        }
+
+        private int GroupTabsLeftPx(int group)
+        {
+            return RegionLeftPx(group) + (_showTabListButton ? TabListButtonSizePx + Dpi(6) : 0);
+        }
+
+        private int GroupTabsRightPx(int group)
+        {
+            return RegionRightPx(group) - (ShowNewTabButton ? NewTabButtonSizePx + Dpi(8) : 0);
+        }
+
+        private int GroupTabCount(int group)
+        {
+            int count = 0;
+
+            for (int i = 0; i < _tabs.Count; i++)
             {
-                if (_tabs.Count == 0)
+                if (GroupOf(_tabs[i]) == group)
                 {
-                    return Dpi(220);
+                    count++;
                 }
-
-                int available = Math.Max(0, TabsRightLimitPx - TabsLeftPx);
-                int width = (available - (_tabs.Count - 1) * TabGapPx) / _tabs.Count;
-
-                return Math.Max(Dpi(48), Math.Min(Dpi(220), width));
             }
+
+            return count;
+        }
+
+        /// <summary>Position of the tab at <paramref name="index" /> within its own region.</summary>
+        private int GroupPosition(int index)
+        {
+            int group = GroupOf(_tabs[index]);
+            int position = 0;
+
+            for (int i = 0; i < index; i++)
+            {
+                if (GroupOf(_tabs[i]) == group)
+                {
+                    position++;
+                }
+            }
+
+            return position;
+        }
+
+        /// <summary>Global index of the region member at position <paramref name="position" />.</summary>
+        private int GlobalIndexOfGroupPosition(int group, int position)
+        {
+            int seen = 0;
+
+            for (int i = 0; i < _tabs.Count; i++)
+            {
+                if (GroupOf(_tabs[i]) == group)
+                {
+                    if (seen == position)
+                    {
+                        return i;
+                    }
+
+                    seen++;
+                }
+            }
+
+            return _tabs.Count - 1;
+        }
+
+        private int TabWidthPx(int group)
+        {
+            int count = GroupTabCount(group);
+
+            if (count == 0)
+            {
+                return Dpi(220);
+            }
+
+            int available = Math.Max(0, GroupTabsRightPx(group) - GroupTabsLeftPx(group));
+            int width = (available - (count - 1) * TabGapPx) / count;
+
+            return Math.Max(Dpi(48), Math.Min(Dpi(220), width));
         }
 
         private Rectangle TabRect(int index)
         {
+            int group = GroupOf(_tabs[index]);
+            int width = TabWidthPx(group);
+
             return new Rectangle(
-                TabsLeftPx + index * (TabWidthPx + TabGapPx), StripHeightPx - TabHeightPx - TabBottomMarginPx, TabWidthPx, TabHeightPx);
+                GroupTabsLeftPx(group) + GroupPosition(index) * (width + TabGapPx),
+                StripHeightPx - TabHeightPx - TabBottomMarginPx,
+                width,
+                TabHeightPx);
         }
 
         private Rectangle TabCloseRect(Rectangle tabRect)
@@ -833,15 +999,38 @@ namespace FluentChromeTabs
 
         private bool TabShowsClose(int index)
         {
-            return _tabs[index].CanClose && (index == _selectedIndex || TabWidthPx >= Dpi(72));
+            return _tabs[index].CanClose
+                && (index == _selectedIndex || _tabs[index].Highlighted || TabWidthPx(GroupOf(_tabs[index])) >= Dpi(72));
         }
 
-        private Rectangle NewTabButtonRect()
+        private Rectangle NewTabButtonRect(int group)
         {
-            int last = _tabs.Count > 0 ? TabRect(_tabs.Count - 1).Right : TabsLeftPx;
+            int count = GroupTabCount(group);
+            int last = count > 0
+                ? GroupTabsLeftPx(group) + count * (TabWidthPx(group) + TabGapPx) - TabGapPx
+                : GroupTabsLeftPx(group);
             int size = NewTabButtonSizePx;
             int tabTop = StripHeightPx - TabHeightPx - TabBottomMarginPx;
             return new Rectangle(last + Dpi(8), tabTop + (TabHeightPx - size) / 2, size, size);
+        }
+
+        /// <summary>True when the point hits any region's "+" or tab-list toggle.</summary>
+        private bool HitsStripButton(Point p)
+        {
+            for (int group = 0; group < GroupCount; group++)
+            {
+                if (ShowNewTabButton && NewTabButtonRect(group).Contains(p))
+                {
+                    return true;
+                }
+
+                if (ShowTabListButton && TabListButtonRect(group).Contains(p))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private Rectangle CaptionButtonRect(int htCode)

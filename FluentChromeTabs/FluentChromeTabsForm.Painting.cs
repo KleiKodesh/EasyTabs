@@ -10,8 +10,9 @@ namespace FluentChromeTabs
     {
         private int _hoverTab = -1;
         private bool _hoverTabClose;
-        private bool _hoverNewTab;
-        private bool _hoverTabListButton;
+        private int _hoverNewTabGroup = -1;
+        private int _hoverTabListGroup = -1;
+        private bool _hoverDivider;
         private string _toolTipShownFor;
 
         /// <summary>Device-scale factor for glyph geometry (1.0 at 96 DPI).</summary>
@@ -120,14 +121,41 @@ namespace FluentChromeTabs
                 DrawTab(g, _dragIndex, rect);
             }
 
-            if (ShowNewTabButton)
+            for (int group = 0; group < GroupCount; group++)
             {
-                DrawNewTabButton(g);
+                if (ShowNewTabButton)
+                {
+                    DrawNewTabButton(g, group);
+                }
+
+                if (ShowTabListButton)
+                {
+                    DrawTabListButton(g, group);
+                }
             }
 
-            if (ShowTabListButton)
+            // Divider between the two split regions — a seamless extension of the Vue
+            // split divider below it: same 4px thickness, border color, and 50% accent
+            // highlight while hovered or dragged.
+            if (SplitStrip)
             {
-                DrawTabListButton(g);
+                Color color = _hoverDivider || _dividerDragging
+                    ? Palette.Blend(_palette.Strip, AccentColor ?? _palette.TextActive, 0.5)
+                    : SplitDividerColor ?? _palette.Separator;
+
+                // Crisp axis-aligned bar — no antialias bleed. When the host pinned exact
+                // pixels, paint precisely those so the bar continues the content divider.
+                SmoothingMode saved = g.SmoothingMode;
+                g.SmoothingMode = SmoothingMode.None;
+
+                using (SolidBrush brush = new SolidBrush(color))
+                {
+                    int width = _dividerOverrideLeft >= 0 ? _dividerOverrideWidth : Dpi(4);
+                    int left = _dividerOverrideLeft >= 0 ? _dividerOverrideLeft : DividerXPx - width / 2;
+                    g.FillRectangle(brush, left, Dpi(6), width, StripHeightPx - Dpi(6));
+                }
+
+                g.SmoothingMode = saved;
             }
 
             DrawCaptionButton(g, NativeMethods.HTMINBUTTON);
@@ -143,7 +171,8 @@ namespace FluentChromeTabs
 
         private void DrawTab(Graphics g, int index, Rectangle rect)
         {
-            bool active = index == _selectedIndex;
+            // Highlighted marks a split region's own active tab (each region shows one)
+            bool active = index == _selectedIndex || _tabs[index].Highlighted;
             bool hover = index == _hoverTab;
             FluentTab tab = _tabs[index];
 
@@ -181,7 +210,9 @@ namespace FluentChromeTabs
             bool showClose = TabShowsClose(index);
             int textRight = showClose ? TabCloseRect(rect).Left - Dpi(4) : rect.Right - Dpi(8);
 
-            TextFormatFlags textFlags = TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix;
+            // No EndEllipsis: on narrow tabs the "…" just eats space the text could use —
+            // hard-clip instead (the tooltip still surfaces the full title).
+            TextFormatFlags textFlags = TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix;
 
             if (RightToLeft == RightToLeft.Yes)
             {
@@ -230,11 +261,11 @@ namespace FluentChromeTabs
             return path;
         }
 
-        private void DrawNewTabButton(Graphics g)
+        private void DrawNewTabButton(Graphics g, int group)
         {
-            Rectangle rect = NewTabButtonRect();
+            Rectangle rect = NewTabButtonRect(group);
 
-            if (_hoverNewTab && !_dragging)
+            if (_hoverNewTabGroup == group && !_dragging)
             {
                 using (SolidBrush brush = new SolidBrush(Palette.Blend(_palette.Strip, _palette.TextActive, 0.1)))
                 using (GraphicsPath path = RoundedRectPath(rect, Dpi(4)))
@@ -253,12 +284,12 @@ namespace FluentChromeTabs
             }
         }
 
-        private void DrawTabListButton(Graphics g)
+        private void DrawTabListButton(Graphics g, int group)
         {
-            Rectangle rect = TabListButtonRect();
-            bool open = IsTabListOpen;
+            Rectangle rect = TabListButtonRect(group);
+            bool open = TabListOpenGroup == group;
 
-            if ((_hoverTabListButton && !_dragging) || open)
+            if ((_hoverTabListGroup == group && !_dragging) || open)
             {
                 double amount = open ? 0.16 : 0.12;
 
@@ -369,15 +400,36 @@ namespace FluentChromeTabs
 
             int tab = HitTab(p);
             bool overClose = tab >= 0 && TabShowsClose(tab) && TabCloseRect(TabRect(tab)).Contains(p);
-            bool overNewTab = ShowNewTabButton && p.Y < StripHeightPx && NewTabButtonRect().Contains(p);
-            bool overTabList = ShowTabListButton && p.Y < StripHeightPx && TabListButtonRect().Contains(p);
+            bool overDivider = SplitStrip && p.Y < StripHeightPx && DividerHitRect.Contains(p);
+            int overNewTab = -1;
+            int overTabList = -1;
 
-            if (tab != _hoverTab || overClose != _hoverTabClose || overNewTab != _hoverNewTab || overTabList != _hoverTabListButton)
+            if (p.Y < StripHeightPx)
+            {
+                for (int group = 0; group < GroupCount; group++)
+                {
+                    if (ShowNewTabButton && NewTabButtonRect(group).Contains(p))
+                    {
+                        overNewTab = group;
+                    }
+
+                    if (ShowTabListButton && TabListButtonRect(group).Contains(p))
+                    {
+                        overTabList = group;
+                    }
+                }
+            }
+
+            Cursor = overDivider ? Cursors.SizeWE : Cursors.Default;
+
+            if (tab != _hoverTab || overClose != _hoverTabClose || overNewTab != _hoverNewTabGroup
+                || overTabList != _hoverTabListGroup || overDivider != _hoverDivider)
             {
                 _hoverTab = tab;
                 _hoverTabClose = overClose;
-                _hoverNewTab = overNewTab;
-                _hoverTabListButton = overTabList;
+                _hoverNewTabGroup = overNewTab;
+                _hoverTabListGroup = overTabList;
+                _hoverDivider = overDivider;
                 InvalidateStrip();
                 UpdateToolTip();
             }
@@ -385,12 +437,13 @@ namespace FluentChromeTabs
 
         private void ClearHoverState()
         {
-            if (_hoverTab != -1 || _hoverNewTab || _hoverTabClose || _hoverTabListButton)
+            if (_hoverTab != -1 || _hoverNewTabGroup != -1 || _hoverTabClose || _hoverTabListGroup != -1 || _hoverDivider)
             {
                 _hoverTab = -1;
                 _hoverTabClose = false;
-                _hoverNewTab = false;
-                _hoverTabListButton = false;
+                _hoverNewTabGroup = -1;
+                _hoverTabListGroup = -1;
+                _hoverDivider = false;
                 InvalidateStrip();
                 UpdateToolTip();
             }

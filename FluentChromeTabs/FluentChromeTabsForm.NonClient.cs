@@ -75,9 +75,7 @@ namespace FluentChromeTabs
                             {
                                 m.Result = new IntPtr(NativeMethods.HTMINBUTTON);
                             }
-                            else if (HitTab(p) < 0
-                                && !(ShowNewTabButton && NewTabButtonRect().Contains(p))
-                                && !(ShowTabListButton && TabListButtonRect().Contains(p)))
+                            else if (HitTab(p) < 0 && !HitsStripButton(p) && !(SplitStrip && DividerHitRect.Contains(p)))
                             {
                                 // Empty strip drags the window and double-click maximizes, both natively
                                 m.Result = new IntPtr(NativeMethods.HTCAPTION);

@@ -45,12 +45,16 @@ namespace FluentChromeTabs
     /// </summary>
     public class TabListOpeningEventArgs : EventArgs
     {
-        public TabListOpeningEventArgs(List<TabListSection> sections)
+        public TabListOpeningEventArgs(List<TabListSection> sections, int group)
         {
             Sections = sections;
+            Group = group;
         }
 
         public List<TabListSection> Sections { get; }
+
+        /// <summary>Which split region's toggle opened the popup (always 0 when the strip is not split).</summary>
+        public int Group { get; }
     }
 
     /// <summary>
