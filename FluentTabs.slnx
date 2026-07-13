@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="FluentTabs.Demo/FluentTabs.Demo.csproj" />
+  <Project Path="FluentTabs/FluentTabs.csproj" />
+</Solution>

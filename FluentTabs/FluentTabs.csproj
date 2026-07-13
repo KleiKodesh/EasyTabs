@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>7.3</LangVersion>
+    <RootNamespace>FluentTabs</RootNamespace>
+    <AssemblyName>FluentTabs</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Label="NuGet package">
+    <PackageId>FluentTabs</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>KleiKodesh</Authors>
+    <Product>FluentTabs</Product>
+    <Description>Fluent, Windows 11 style tabs in the title bar for WinForms (.NET Framework 4.8). Native window-shell integration — no overlay windows — so DWM shadows, snap layouts, rounded corners, and window animations all stay smooth. Drag to reorder, tear off into new windows, drag-merge between windows, light/dark/auto theme, per-monitor DPI.</Description>
+    <PackageTags>winforms;tabs;titlebar;fluent;windows11;chrome-tabs;dwm;custom-chrome</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageProjectUrl>https://github.com/KleiKodesh/EasyTabs</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/KleiKodesh/EasyTabs</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <Copyright>Copyright (c) 2026 KleiKodesh</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>
