@@ -13,6 +13,36 @@ namespace FluentChromeTabs
         private bool _hoverNewTab;
         private string _toolTipShownFor;
 
+        /// <summary>Device-scale factor for glyph geometry (1.0 at 96 DPI).</summary>
+        private float GlyphScale
+        {
+            get { return DeviceDpi / 96f; }
+        }
+
+        /// <summary>
+        /// Thin round-capped pen matching the stroke weight of Segoe Fluent Icons. Glyphs are drawn as
+        /// vector paths rather than font glyphs so the Fluent look works on any Windows version.
+        /// </summary>
+        private Pen GlyphPen(Color color)
+        {
+            Pen pen = new Pen(color, Math.Max(1f, 1.1f * GlyphScale));
+            pen.StartCap = LineCap.Round;
+            pen.EndCap = LineCap.Round;
+            pen.LineJoin = LineJoin.Round;
+            return pen;
+        }
+
+        private static GraphicsPath RoundedRectPathF(float x, float y, float w, float h, float r)
+        {
+            GraphicsPath path = new GraphicsPath();
+            path.AddArc(x, y, r * 2, r * 2, 180, 90);
+            path.AddArc(x + w - r * 2, y, r * 2, r * 2, 270, 90);
+            path.AddArc(x + w - r * 2, y + h - r * 2, r * 2, r * 2, 0, 90);
+            path.AddArc(x, y + h - r * 2, r * 2, r * 2, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
@@ -80,7 +110,8 @@ namespace FluentChromeTabs
                         g.FillPath(brush, path);
                     }
 
-                    if (active)
+                    // Edge shows a soft outline on the active tab only in light themes; dark tabs are borderless
+                    if (active && !_isDark)
                     {
                         using (Pen pen = new Pen(_palette.TabBorder))
                         {
@@ -130,11 +161,13 @@ namespace FluentChromeTabs
                     }
                 }
 
-                using (Pen pen = new Pen(StripTextColor(active), Dpi(1) * 1.1f))
+                using (Pen pen = GlyphPen(StripTextColor(active)))
                 {
-                    int inset = Dpi(5);
-                    g.DrawLine(pen, close.Left + inset, close.Top + inset, close.Right - inset, close.Bottom - inset);
-                    g.DrawLine(pen, close.Left + inset, close.Bottom - inset, close.Right - inset, close.Top + inset);
+                    float ccx = close.Left + close.Width / 2f;
+                    float ccy = close.Top + close.Height / 2f;
+                    float arm = 3.5f * GlyphScale;
+                    g.DrawLine(pen, ccx - arm, ccy - arm, ccx + arm, ccy + arm);
+                    g.DrawLine(pen, ccx - arm, ccy + arm, ccx + arm, ccy - arm);
                 }
             }
         }
@@ -163,11 +196,11 @@ namespace FluentChromeTabs
                 }
             }
 
-            using (Pen pen = new Pen(StripTextColor(false), Dpi(1) * 1.1f))
+            using (Pen pen = GlyphPen(StripTextColor(false)))
             {
-                int cx = rect.Left + rect.Width / 2;
-                int cy = rect.Top + rect.Height / 2;
-                int arm = Dpi(5);
+                float cx = rect.Left + rect.Width / 2f;
+                float cy = rect.Top + rect.Height / 2f;
+                float arm = 5f * GlyphScale;
                 g.DrawLine(pen, cx - arm, cy, cx + arm, cy);
                 g.DrawLine(pen, cx, cy - arm, cx, cy + arm);
             }
@@ -194,55 +227,62 @@ namespace FluentChromeTabs
                 }
             }
 
+            // Fluent-style glyphs (Segoe Fluent Icons look) drawn as vector paths: thin anti-aliased
+            // strokes with rounded corners, so they render on any Windows version without icon fonts
             Color glyphColor = isClose && (hot || pressed) ? Color.White : StripTextColor(true);
-            int x = rect.Left + rect.Width / 2;
-            int y = rect.Top + rect.Height / 2;
-            int arm = Dpi(5);
+            float s = GlyphScale;
+            float cx = rect.Left + rect.Width / 2f;
+            float cy = rect.Top + rect.Height / 2f;
 
-            SmoothingMode previous = g.SmoothingMode;
-            g.SmoothingMode = SmoothingMode.None;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
 
-            using (Pen pen = new Pen(glyphColor))
+            using (Pen pen = GlyphPen(glyphColor))
             {
                 switch (htCode)
                 {
                     case NativeMethods.HTMINBUTTON:
-                        g.DrawLine(pen, x - arm, y, x + arm, y);
+                        g.DrawLine(pen, cx - 5f * s, cy, cx + 5f * s, cy);
                         break;
 
                     case NativeMethods.HTMAXBUTTON:
                         if (NativeMethods.IsZoomed(Handle))
                         {
-                            int box = Dpi(8);
-                            int offset = Dpi(2);
+                            // ChromeRestore: front rounded square plus the visible top-right edge of the back sheet
+                            float gx = cx - 5f * s;
+                            float gy = cy - 5f * s;
+                            float front = 8f * s;
+                            float corner = 1.6f * s;
 
-                            // Back square first, then the front square erases its overlap
-                            g.DrawRectangle(pen, x - box / 2 + offset - 1, y - box / 2 - offset + 1, box, box);
-
-                            using (SolidBrush eraser = new SolidBrush(background))
+                            using (GraphicsPath back = new GraphicsPath())
                             {
-                                g.FillRectangle(eraser, x - box / 2 - 1, y - box / 2 - 1, box + 2, box + 2);
+                                back.AddLine(gx + 3.5f * s, gy, gx + 10f * s - corner, gy);
+                                back.AddArc(gx + 10f * s - 2f * corner, gy, 2f * corner, 2f * corner, 270, 90);
+                                back.AddLine(gx + 10f * s, gy + corner, gx + 10f * s, gy + 6.5f * s);
+                                g.DrawPath(pen, back);
                             }
 
-                            g.DrawRectangle(pen, x - box / 2 - 1, y - box / 2 - 1, box + 1, box + 1);
+                            using (GraphicsPath frontPath = RoundedRectPathF(gx, gy + 2f * s, front, front, corner))
+                            {
+                                g.DrawPath(pen, frontPath);
+                            }
                         }
                         else
                         {
-                            int box = Dpi(10);
-                            g.DrawRectangle(pen, x - box / 2, y - box / 2, box, box);
+                            // ChromeMaximize: rounded-corner square
+                            using (GraphicsPath box = RoundedRectPathF(cx - 4.5f * s, cy - 4.5f * s, 9f * s, 9f * s, 1.8f * s))
+                            {
+                                g.DrawPath(pen, box);
+                            }
                         }
 
                         break;
 
                     case NativeMethods.HTCLOSE:
-                        g.SmoothingMode = SmoothingMode.AntiAlias;
-                        g.DrawLine(pen, x - arm, y - arm, x + arm, y + arm);
-                        g.DrawLine(pen, x - arm, y + arm, x + arm, y - arm);
+                        g.DrawLine(pen, cx - 4.5f * s, cy - 4.5f * s, cx + 4.5f * s, cy + 4.5f * s);
+                        g.DrawLine(pen, cx - 4.5f * s, cy + 4.5f * s, cx + 4.5f * s, cy - 4.5f * s);
                         break;
                 }
             }
-
-            g.SmoothingMode = previous;
         }
 
         private void UpdateHoverState(Point p)

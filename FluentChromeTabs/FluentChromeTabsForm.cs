@@ -447,18 +447,18 @@ namespace FluentChromeTabs
 
         private int TabHeightPx
         {
-            get { return Dpi(30); }
+            get { return Dpi(32); }
         }
 
         /// <summary>Gap between the bottom of the floating tab cards and the strip edge (Edge style).</summary>
         private int TabBottomMarginPx
         {
-            get { return Dpi(5); }
+            get { return Dpi(4); }
         }
 
         private int TabGapPx
         {
-            get { return Dpi(4); }
+            get { return Dpi(2); }
         }
 
         private int TabRadiusPx
