@@ -12,6 +12,7 @@ namespace FluentChromeTabs.Demo
 
             AddTab("Welcome", BuildWelcomeContent());
             AddTab("Editor", BuildEditorContent());
+            AddTab("Colors", BuildColorsContent());
             AddTab("Pinned", BuildPinnedContent()).CanClose = false;
             SelectedIndex = 0;
 
@@ -28,7 +29,10 @@ namespace FluentChromeTabs.Demo
         {
             foreach (FluentTab tab in Tabs)
             {
-                Restyle(tab.Content);
+                if (tab.Content != null)
+                {
+                    Restyle(tab.Content);
+                }
             }
         }
 
@@ -39,7 +43,11 @@ namespace FluentChromeTabs.Demo
 
             foreach (Control child in control.Controls)
             {
-                if (child is TextBox)
+                if (Equals(child.Tag, "swatch"))
+                {
+                    // Color swatches keep their own background
+                }
+                else if (child is TextBox)
                 {
                     child.BackColor = ContentBackColor;
                     child.ForeColor = ContentForeColor;
@@ -140,6 +148,132 @@ namespace FluentChromeTabs.Demo
 
             panel.Controls.Add(editor);
             return panel;
+        }
+
+        private Control BuildColorsContent()
+        {
+            Panel panel = new Panel { BackColor = ContentBackColor };
+
+            Label heading = new Label
+            {
+                Text = "Appearance",
+                Font = new Font("Segoe UI Semibold", 18f),
+                ForeColor = ContentForeColor,
+                AutoSize = true,
+                Location = new Point(40, 40)
+            };
+
+            Label themeLabel = new Label
+            {
+                Text = "Theme mode:",
+                Font = new Font("Segoe UI", 11f),
+                ForeColor = ContentForeColor,
+                AutoSize = true,
+                Location = new Point(42, 92)
+            };
+
+            Button light = MakeButton("Light", new Point(42, 120));
+            light.Click += (sender, e) =>
+            {
+                CustomThemeColor = null;
+                Theme = FluentChromeTabsTheme.Light;
+            };
+
+            Button dark = MakeButton("Dark", new Point(160, 120));
+            dark.Click += (sender, e) =>
+            {
+                CustomThemeColor = null;
+                Theme = FluentChromeTabsTheme.Dark;
+            };
+
+            Button auto = MakeButton("Auto", new Point(278, 120));
+            auto.Click += (sender, e) =>
+            {
+                CustomThemeColor = null;
+                Theme = FluentChromeTabsTheme.Auto;
+            };
+
+            Label customLabel = new Label
+            {
+                Text = "Custom chrome color (CustomThemeColor) — click a swatch:",
+                Font = new Font("Segoe UI", 11f),
+                ForeColor = ContentForeColor,
+                AutoSize = true,
+                Location = new Point(42, 192)
+            };
+
+            object[][] swatches =
+            {
+                new object[] { "Midnight", Color.FromArgb(24, 34, 58) },
+                new object[] { "Forest", Color.FromArgb(28, 48, 34) },
+                new object[] { "Wine", Color.FromArgb(64, 26, 38) },
+                new object[] { "Plum", Color.FromArgb(46, 30, 62) },
+                new object[] { "Teal", Color.FromArgb(14, 58, 58) },
+                new object[] { "Sand", Color.FromArgb(238, 227, 206) },
+                new object[] { "Sky", Color.FromArgb(214, 230, 244) },
+                new object[] { "Rose", Color.FromArgb(246, 219, 226) }
+            };
+
+            for (int i = 0; i < swatches.Length; i++)
+            {
+                string name = (string) swatches[i][0];
+                Color color = (Color) swatches[i][1];
+
+                Button swatch = new Button
+                {
+                    Text = name,
+                    Tag = "swatch",
+                    Font = new Font("Segoe UI", 9f),
+                    Size = new Size(104, 40),
+                    Location = new Point(42 + (i % 4) * 116, 232 + (i / 4) * 52),
+                    FlatStyle = FlatStyle.Flat,
+                    BackColor = color,
+                    ForeColor = Palette_IsDark(color) ? Color.White : Color.Black
+                };
+                swatch.FlatAppearance.BorderColor = Color.Gray;
+                swatch.Click += (sender, e) => CustomThemeColor = color;
+                panel.Controls.Add(swatch);
+            }
+
+            Button pick = MakeButton("Pick a color…", new Point(42, 352));
+            pick.Size = new Size(200, 36);
+            pick.Click += (sender, e) =>
+            {
+                using (ColorDialog dialog = new ColorDialog { FullOpen = true, Color = CustomThemeColor ?? ContentBackColor })
+                {
+                    if (dialog.ShowDialog(this) == DialogResult.OK)
+                    {
+                        CustomThemeColor = dialog.Color;
+                    }
+                }
+            };
+
+            panel.Controls.Add(heading);
+            panel.Controls.Add(themeLabel);
+            panel.Controls.Add(light);
+            panel.Controls.Add(dark);
+            panel.Controls.Add(auto);
+            panel.Controls.Add(customLabel);
+            panel.Controls.Add(pick);
+
+            return panel;
+        }
+
+        private static bool Palette_IsDark(Color color)
+        {
+            return 0.299 * color.R + 0.587 * color.G + 0.114 * color.B < 128;
+        }
+
+        private Button MakeButton(string text, Point location)
+        {
+            return new Button
+            {
+                Text = text,
+                Font = new Font("Segoe UI", 10f),
+                Size = new Size(110, 36),
+                Location = location,
+                FlatStyle = FlatStyle.Flat
+            };
         }
 
         private Control BuildPinnedContent()

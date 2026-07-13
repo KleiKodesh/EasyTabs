@@ -107,7 +107,24 @@ namespace FluentChromeTabs
             }
         }
 
-        /// <summary>True when the effective theme (after resolving <see cref="FluentChromeTabsTheme.Auto" />) is dark.</summary>
+        /// <summary>
+        /// Optional custom chrome color. When set, the tab strip takes this exact color and a full
+        /// palette (tab surfaces, text, hover states) is derived from its brightness, overriding
+        /// <see cref="Theme" />. Set to null to return to the Light/Dark/Auto themes.
+        /// </summary>
+        public Color? CustomThemeColor
+        {
+            get { return _customThemeColor; }
+            set
+            {
+                _customThemeColor = value;
+                ApplyTheme();
+            }
+        }
+
+        private Color? _customThemeColor;
+
+        /// <summary>True when the effective theme (after resolving <see cref="FluentChromeTabsTheme.Auto" /> or a custom color) is dark.</summary>
         public bool IsDarkTheme
         {
             get { return _isDark; }
@@ -345,10 +362,17 @@ namespace FluentChromeTabs
 
         private void ApplyTheme()
         {
-            bool dark = _theme == FluentChromeTabsTheme.Dark || (_theme == FluentChromeTabsTheme.Auto && IsSystemDark());
+            if (_customThemeColor.HasValue)
+            {
+                _isDark = Palette.IsDarkColor(_customThemeColor.Value);
+                _palette = Palette.FromColor(_customThemeColor.Value);
+            }
+            else
+            {
+                _isDark = _theme == FluentChromeTabsTheme.Dark || (_theme == FluentChromeTabsTheme.Auto && IsSystemDark());
+                _palette = _isDark ? Palette.Dark : Palette.Light;
+            }
 
-            _isDark = dark;
-            _palette = dark ? Palette.Dark : Palette.Light;
             BackColor = _palette.Strip;
 
             if (IsHandleCreated)

@@ -201,6 +201,7 @@ namespace FluentChromeTabs
 
             FluentChromeTabsForm newWindow = CreateDetachedWindow();
             newWindow.Theme = _theme;
+            newWindow.CustomThemeColor = _customThemeColor;
             newWindow.StartPosition = FormStartPosition.Manual;
             newWindow.Size = NativeMethods.IsZoomed(Handle) ? RestoreBounds.Size : Size;
             newWindow.Location = new Point(screenCursor.X - dragOffsetX - newWindow.TabsLeftPx, screenCursor.Y - newWindow.StripHeightPx / 2);

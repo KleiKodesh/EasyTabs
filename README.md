@@ -24,6 +24,8 @@ animations all stay perfectly smooth. One window, no chasing, no flicker.
 - 🧲 **Drag-merge** — drop a tab onto another window's strip to move it there
 - 🌓 **Light / Dark / Auto theme** — Auto follows the Windows setting live, including the
   immersive dark mode window frame
+- 🎨 **Any custom chrome color** — set `CustomThemeColor` to a single `Color` and a complete
+  readable palette (tab surfaces, text, hover states) is derived from it automatically
 - 🎛 **Windows 11 snap layouts** flyout on the maximize button
 - ⌨️ **Keyboard**: `Ctrl+T` new tab, `Ctrl+W` / `Ctrl+F4` close, `Ctrl+Tab` / `Ctrl+Shift+Tab`
   cycle, `Ctrl+1`–`Ctrl+9` select
@@ -85,6 +87,21 @@ Application.Run(new FluentChromeTabsApplicationContext(window));
 Mixing is fine too: some tabs with `Content`, some without. Per-tab state for loose tabs lives
 wherever you like — `FluentTab.Tag` is the natural spot. See `LooseDemoForm` in the demo app.
 
+### Custom chrome colors
+
+Not limited to light and dark — hand the chrome any color and a complete palette (tab surfaces,
+readable text, hover states, separators) is derived from its brightness:
+
+```csharp
+window.CustomThemeColor = Color.FromArgb(24, 34, 58);   // midnight blue chrome
+window.CustomThemeColor = Color.FromArgb(238, 227, 206); // sand — light colors work too
+window.CustomThemeColor = null;                          // back to Theme (Light/Dark/Auto)
+```
+
+`ContentBackColor` / `ContentForeColor` and the `ThemeChanged` event track the custom color, so
+your content can restyle itself the same way it does for light/dark. Try the **Colors** tab in
+the demo app.
+
 ### A richer app
 
 ```csharp
@@ -124,6 +141,7 @@ public class MainWindow : FluentChromeTabsForm
 | `RequestNewTab()` | Same as the user pressing "+" |
 | `Tabs`, `SelectedTab`, `SelectedIndex` | Enumerate and select |
 | `Theme` (`Auto` / `Light` / `Dark`), `IsDarkTheme` | Theming |
+| `CustomThemeColor` | Any `Color` as the chrome color; full palette derived from its brightness. Null returns to `Theme` |
 | `ContentBackColor`, `ContentForeColor` | Suggested colors so your content matches the chrome |
 | `ShowNewTabButton`, `AllowTabDetach`, `ExitOnLastTabClose` | Behavior switches |
 

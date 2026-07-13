@@ -62,5 +62,36 @@ namespace FluentChromeTabs
                 (int) (from.G + (to.G - from.G) * amount),
                 (int) (from.B + (to.B - from.B) * amount));
         }
+
+        /// <summary>Perceived-luminance check used to pick readable text colors for arbitrary chrome colors.</summary>
+        public static bool IsDarkColor(Color color)
+        {
+            return 0.299 * color.R + 0.587 * color.G + 0.114 * color.B < 128;
+        }
+
+        /// <summary>
+        /// Derives a complete palette from a single user-supplied chrome color: the tab strip takes the
+        /// color itself, and tab surfaces, text, separators, and button states are derived from its
+        /// perceived luminance so both dark and light custom colors stay readable.
+        /// </summary>
+        public static Palette FromColor(Color chrome)
+        {
+            bool dark = IsDarkColor(chrome);
+            Color text = dark ? Color.FromArgb(245, 245, 245) : Color.FromArgb(26, 26, 26);
+            Color tabActive = Blend(chrome, Color.White, dark ? 0.12 : 0.5);
+
+            return new Palette
+            {
+                Strip = chrome,
+                TabActive = tabActive,
+                TabHover = Blend(chrome, tabActive, 0.45),
+                TextActive = text,
+                TextInactive = Blend(text, chrome, 0.35),
+                Separator = Blend(chrome, text, 0.25),
+                ButtonHover = Blend(chrome, text, 0.08),
+                ButtonPressed = Blend(chrome, text, 0.15),
+                CloseButtonHover = Color.FromArgb(196, 43, 28)
+            };
+        }
     }
 }
