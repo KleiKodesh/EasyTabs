@@ -13,7 +13,10 @@ namespace FluentChromeTabs
         private int _hoverNewTabGroup = -1;
         private int _hoverTabListGroup = -1;
         private bool _hoverDivider;
-        private string _toolTipShownFor;
+        // Identity of whatever the tooltip currently describes (a FluentTab, or a boxed
+        // caption hit-code) so repeated same-target mouse moves don't re-show/flicker, while
+        // moving to a different target — even one with an identical title — repositions it.
+        private object _toolTipKey;
 
         /// <summary>Device-scale factor for glyph geometry (1.0 at 96 DPI).</summary>
         private float GlyphScale
@@ -449,36 +452,56 @@ namespace FluentChromeTabs
             }
         }
 
-        /// <summary>Shows the full title as a tooltip when it is truncated on the tab.</summary>
+        /// <summary>Shows the full tab title as a tooltip whenever a tab is hovered.</summary>
         private void UpdateToolTip()
         {
-            string tip = null;
-
+            // Tabs are custom-drawn regions, not child controls, so there is no control to
+            // hand to ToolTip.SetToolTip for automatic positioning — we place it ourselves.
+            // Always show the full title on hover (not only when the tab text is truncated).
             if (_hoverTab >= 0 && !_dragging)
             {
                 FluentTab tab = _tabs[_hoverTab];
-                Rectangle rect = TabRect(_hoverTab);
-                int available = rect.Width - Dpi(10) - (tab.Icon != null ? Dpi(22) : 0) - (TabShowsClose(_hoverTab) ? Dpi(28) : Dpi(8));
-
-                if (TextRenderer.MeasureText(tab.Title, Font).Width > available)
-                {
-                    tip = tab.Title;
-                }
+                ShowStripToolTip(tab, tab.Title, TabRect(_hoverTab));
             }
-
-            if (tip != _toolTipShownFor)
+            else
             {
-                _toolTipShownFor = tip;
-
-                if (tip != null)
-                {
-                    _toolTip.Show(tip, this, TabRect(_hoverTab).Left, StripHeightPx + Dpi(4), 3000);
-                }
-                else
-                {
-                    _toolTip.Hide(this);
-                }
+                ShowStripToolTip(null, null, Rectangle.Empty);
             }
+        }
+
+        /// <summary>
+        /// Shows <paramref name="text" /> just below the strip, aligned to the inline-start edge of
+        /// <paramref name="anchorClientRect" /> (given in logical client coordinates). <paramref name="key" />
+        /// identifies the described item so repeated moves over it don't re-show, while a different
+        /// item — even with the same text — repositions. Passing a null key/text hides the tooltip.
+        /// Screen positioning via RectangleToScreen is RTL-correct. Used for tabs and caption buttons.
+        /// </summary>
+        private void ShowStripToolTip(object key, string text, Rectangle anchorClientRect)
+        {
+            if (Equals(key, _toolTipKey))
+            {
+                return;
+            }
+
+            _toolTipKey = key;
+
+            if (key == null || string.IsNullOrEmpty(text))
+            {
+                _toolTip?.HideTip();
+                return;
+            }
+
+            if (_toolTip == null || _toolTip.IsDisposed)
+            {
+                _toolTip = new ThemedToolTip(Font, EffectiveDpi / 96f);
+            }
+
+            // RectangleToScreen maps the item's logical client rect to its true physical
+            // position, so the tip anchors under the visible item in both LTR and RTL.
+            Rectangle itemScreen = RectangleToScreen(anchorClientRect);
+            int stripBottomScreen = RectangleToScreen(new Rectangle(0, 0, 1, StripHeightPx)).Bottom;
+            int startX = IsMirrored ? itemScreen.Right : itemScreen.Left;
+            _toolTip.ShowText(text, _palette, IsMirrored, startX, stripBottomScreen + Dpi(4));
         }
     }
 }

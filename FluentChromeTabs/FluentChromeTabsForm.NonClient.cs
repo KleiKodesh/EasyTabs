@@ -95,6 +95,10 @@ namespace FluentChromeTabs
 
                     if (overButton)
                     {
+                        // Our own (localizable) tooltip in place of Windows' OS-language one.
+                        // Key by hit-code so moving within one button doesn't re-show.
+                        ShowStripToolTip(hit, CaptionButtonToolTip(hit), CaptionButtonRect(hit));
+
                         // Ask for WM_NCMOUSELEAVE so hover state clears when the cursor leaves the window
                         NativeMethods.TRACKMOUSEEVENT tme = new NativeMethods.TRACKMOUSEEVENT
                         {
@@ -104,12 +108,17 @@ namespace FluentChromeTabs
                         };
                         NativeMethods.TrackMouseEvent(ref tme);
                     }
+                    else
+                    {
+                        ShowStripToolTip(null, null, Rectangle.Empty);
+                    }
 
                     break;
                 }
 
                 case NativeMethods.WM_NCMOUSELEAVE:
                     SetHotCaptionButton(0);
+                    ShowStripToolTip(null, null, Rectangle.Empty);
 
                     if (_pressedCaptionButton != 0)
                     {

@@ -25,7 +25,7 @@ namespace FluentChromeTabs
         private static readonly List<FluentChromeTabsForm> OpenTabForms = new List<FluentChromeTabsForm>();
 
         private readonly List<FluentTab> _tabs = new List<FluentTab>();
-        private readonly ToolTip _toolTip = new ToolTip();
+        private ThemedToolTip _toolTip;
 
         private int _selectedIndex = -1;
         private FluentChromeTabsTheme _theme = FluentChromeTabsTheme.Auto;
@@ -267,6 +267,24 @@ namespace FluentChromeTabs
         /// content divider exactly. Falls back to the palette separator when null.
         /// </summary>
         public Color? SplitDividerColor { get; set; }
+
+        /// <summary>
+        /// Tooltip text for the caption buttons. The buttons are custom-drawn and hit-tested
+        /// as the standard caption controls, so Windows would otherwise show its own
+        /// OS-language tooltips; setting these shows localized ones instead. English by default.
+        /// </summary>
+        public string MinimizeToolTip { get; set; } = "Minimize";
+        public string MaximizeToolTip { get; set; } = "Maximize";
+        public string RestoreToolTip { get; set; } = "Restore";
+        public string CloseToolTip { get; set; } = "Close";
+
+        private string CaptionButtonToolTip(int htCode)
+        {
+            if (htCode == NativeMethods.HTCLOSE) return CloseToolTip;
+            if (htCode == NativeMethods.HTMINBUTTON) return MinimizeToolTip;
+            if (htCode == NativeMethods.HTMAXBUTTON) return NativeMethods.IsZoomed(Handle) ? RestoreToolTip : MaximizeToolTip;
+            return null;
+        }
 
         /// <summary>
         /// Raised right before the tab-list dropdown opens, with the open-tabs section already
@@ -1150,7 +1168,7 @@ namespace FluentChromeTabs
         {
             if (disposing)
             {
-                _toolTip.Dispose();
+                _toolTip?.Dispose();
                 _windowIconBitmap?.Dispose();
             }
 

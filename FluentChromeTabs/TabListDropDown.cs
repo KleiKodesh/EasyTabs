@@ -89,7 +89,7 @@ namespace FluentChromeTabs
         private readonly Palette _palette;
         private readonly bool _rtl;
         private readonly float _scale;
-        private readonly ToolTip _toolTip = new ToolTip();
+        private ThemedToolTip _toolTip;
         private Font _headerFont;
         private int _hoverRow = -1;
         private int _focusRow = -1;
@@ -535,12 +535,18 @@ namespace FluentChromeTabs
 
                 if (tip != null)
                 {
-                    Rectangle rect = RowRect(row);
-                    _toolTip.Show(tip, this, _rtl ? PadX : PadX + S(12), rect.Bottom + S(2), 3000);
+                    if (_toolTip == null || _toolTip.IsDisposed)
+                    {
+                        _toolTip = new ThemedToolTip(Font, _scale);
+                    }
+
+                    Rectangle textRect = TextRectFor(RowRect(row));
+                    Point start = PointToScreen(new Point(_rtl ? textRect.Right : textRect.Left, RowRect(row).Bottom + S(2)));
+                    _toolTip.ShowText(tip, _palette, _rtl, start.X, start.Y);
                 }
                 else
                 {
-                    _toolTip.Hide(this);
+                    _toolTip?.HideTip();
                 }
             }
         }
@@ -585,7 +591,7 @@ namespace FluentChromeTabs
         {
             if (disposing)
             {
-                _toolTip.Dispose();
+                _toolTip?.Dispose();
                 _headerFont?.Dispose();
                 _headerFont = null;
             }
