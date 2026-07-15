@@ -164,4 +164,17 @@ namespace FluentChromeTabs
         /// <summary>Which strip region's "+" was pressed (0 unless <see cref="FluentChromeTabsForm.SplitStrip" /> is on).</summary>
         public int Group { get; set; }
     }
+
+    /// <summary>Event arguments for a tab dragged from one split-strip region into the other.</summary>
+    public class FluentTabGroupEventArgs : FluentTabEventArgs
+    {
+        public FluentTabGroupEventArgs(FluentTab tab, int group)
+            : base(tab)
+        {
+            Group = group;
+        }
+
+        /// <summary>The region the tab was dragged into (0 = primary / inline start, 1 = secondary).</summary>
+        public int Group { get; }
+    }
 }

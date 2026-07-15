@@ -18,6 +18,7 @@ namespace FluentChromeTabs
         private int _dragIndex = -1;
         private int _dragOffsetX;
         private int _dragVisualX;
+        private int _dragStartGroup;
 
         private bool _dividerDragging;
 
@@ -165,6 +166,7 @@ namespace FluentChromeTabs
 
             _dragging = true;
             _dragIndex = _mouseDownTab;
+            _dragStartGroup = GroupOf(_tabs[_dragIndex]);
             _dragOffsetX = _mouseDownPoint.X - TabRect(_dragIndex).Left;
             _dragVisualX = p.X - _dragOffsetX;
 
@@ -185,6 +187,23 @@ namespace FluentChromeTabs
             {
                 DetachDraggedTab();
                 return;
+            }
+
+            // Split strip: crossing the divider moves the dragged tab into the other region.
+            // Reassign its group live so it previews in place; the move is reported to the
+            // host on drop (EndDrag). Everything here is in logical client coordinates, so it
+            // works identically in a mirrored (RTL) window.
+            if (_splitStrip)
+            {
+                int cursorGroup = p.X >= DividerXPx ? 1 : 0;
+
+                if (cursorGroup != GroupOf(_tabs[_dragIndex]))
+                {
+                    _tabs[_dragIndex].Group = cursorGroup;
+
+                    // The target region can size tabs differently — keep the grab point sane
+                    _dragOffsetX = Math.Max(0, Math.Min(_dragOffsetX, TabWidthPx(cursorGroup) - Dpi(16)));
+                }
             }
 
             // Reorder is confined to the dragged tab's own split region
@@ -217,6 +236,19 @@ namespace FluentChromeTabs
 
         private void EndDrag()
         {
+            // Report a cross-region move to the host once, on drop. The tab's group was
+            // already reassigned live during the drag; fire only when it truly changed.
+            if (_dragIndex >= 0 && _dragIndex < _tabs.Count && _splitStrip)
+            {
+                FluentTab dropped = _tabs[_dragIndex];
+                int group = GroupOf(dropped);
+
+                if (group != _dragStartGroup)
+                {
+                    TabDraggedToGroup?.Invoke(this, new FluentTabGroupEventArgs(dropped, group));
+                }
+            }
+
             _dragging = false;
             _dragIndex = -1;
             InvalidateStrip();

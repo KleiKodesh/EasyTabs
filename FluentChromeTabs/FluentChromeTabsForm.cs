@@ -359,6 +359,12 @@ namespace FluentChromeTabs
         /// <summary>Raised when the user requests a new tab (the "+" button or Ctrl+T).</summary>
         public event EventHandler<NewTabRequestedEventArgs> NewTabRequested;
 
+        /// <summary>
+        /// Raised when the user drags a tab across the divider into the other split-strip region
+        /// (only fires when <see cref="SplitStrip" /> is on and the tab's region actually changed).
+        /// </summary>
+        public event EventHandler<FluentTabGroupEventArgs> TabDraggedToGroup;
+
         /// <summary>Raised whenever the effective theme changes (including Windows switching light/dark in Auto mode).</summary>
         public event EventHandler ThemeChanged;
 
